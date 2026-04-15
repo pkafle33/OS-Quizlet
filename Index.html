@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>OS Exam Review</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#f0eeea;font-family:'Courier New',monospace;color:#1a1820;min-height:100vh}
+  ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:#e8e6e0}::-webkit-scrollbar-thumb{background:#bbb;border-radius:3px}
+  button{font-family:'Courier New',monospace;cursor:pointer}
+  textarea{font-family:'Courier New',monospace}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState } = React;
+
+const chapters = [
+  {
+    id:1, title:"Chapter 1", subtitle:"OS Fundamentals", color:"#ff6b35",
+    topics:[
+      {q:"What is the Storage-Device Hierarchy?", a:"From fastest/most expensive to slowest/cheapest: CPU Registers → L1 Cache → L2 Cache → L3 Cache → Main Memory (RAM) → SSD → HDD → Optical → Magnetic Tape. The principle: data moves up to faster levels when needed, and higher levels are smaller. This hierarchy exists because fast memory is expensive."},
+      {q:"What is an Interrupt? What types exist?", a:"A signal that causes the CPU to stop its current task and transfer control to an Interrupt Service Routine (ISR). Types: Hardware interrupt (device signals completion — e.g., keyboard press), Software interrupt / Trap (program requests OS service via system call, or an error occurs). The interrupt vector table stores addresses of all ISRs."},
+      {q:"What is a Process?", a:"A program in execution. Contains: Text section (code), Data section (global variables), Heap (dynamic memory, grows upward), Stack (function calls, local variables, grows downward), Program Counter, and CPU registers. A program is passive (on disk); a process is active (in execution)."},
+      {q:"What is Protection vs Security?", a:"Protection: controlling access to resources among processes and users within the system (internal). Security: defending the system against external and internal attacks (e.g., viruses, unauthorized access). Protection mechanisms (like memory boundaries) support security goals."},
+      {q:"What is Multi-Level Caching?", a:"Multiple cache levels between CPU and RAM. L1: on-chip, ~4KB–64KB, ~1ns access. L2: on-chip or near-chip, ~256KB–1MB. L3: shared across cores, ~8MB+. On a memory access, hardware checks L1 first, then L2, L3, then RAM. Cache hit = fast; cache miss = go to next level. Temporal and spatial locality make caches effective."},
+      {q:"What is a Dual-Core vs Multi-Core Design?", a:"Dual-core: 2 processing cores on one chip, sharing L3 cache and memory bus. Multi-core: 2+ cores. Each core has its own L1/L2 cache. Enables true parallel execution. OS must manage scheduling across cores and handle cache coherence (cores seeing consistent data)."},
+      {q:"What is a Clustered System?", a:"Multiple computers (nodes) connected via LAN, working together. Provides high availability and HPC. Asymmetric clustering: one standby node monitors the active one (hot standby). Symmetric clustering: all nodes run applications and monitor each other. Failover: if one node fails, another takes over its workload."},
+      {q:"What is the difference between Multiprogramming and Multitasking?", a:"Multiprogramming: multiple jobs kept in memory simultaneously; when one waits for I/O, CPU runs another. Goal: maximize CPU utilization. Multitasking (time-sharing): CPU switches rapidly among processes (time slices), giving illusion of simultaneous execution. Provides interactive response time."},
+      {q:"What is the difference between a process and a program?", a:"A program is a passive entity — a file stored on disk containing instructions. A process is an active entity — a program loaded into memory and executing. One program can spawn multiple processes (e.g., opening Chrome twice creates two processes). A process has resources allocated by the OS; a program does not."},
+    ],
+    mcqs:[
+      {q:"What is the correct order of storage hierarchy from fastest to slowest?", opts:["RAM → Cache → Register → HDD","Register → Cache → RAM → HDD","Cache → Register → RAM → SSD","HDD → SSD → RAM → Cache"], ans:1},
+      {q:"Which component stores the addresses of Interrupt Service Routines?", opts:["Program Counter","Interrupt Vector Table","System Call Table","Process Control Block"], ans:1},
+      {q:"Which part of a process's memory layout grows upward (toward higher addresses)?", opts:["Stack","Text","Heap","Data"], ans:2},
+      {q:"What is the value of the mode bit when the CPU is in kernel mode?", opts:["1","2","0","-1"], ans:2},
+      {q:"Protection in OS refers to:", opts:["Defending against external attackers","Encrypting file system data","Controlling resource access among internal processes and users","Preventing hardware failures"], ans:2},
+      {q:"Which cache level is typically the smallest and fastest?", opts:["L3","L2","L4","L1"], ans:3},
+      {q:"In a clustered system, what is failover?", opts:["Increasing clock speed of a node","Balancing load across all nodes","Restarting all nodes simultaneously","Transferring workload from a failed node to another"], ans:3},
+      {q:"What distinguishes a process from a program?", opts:["A process is stored on disk; a program is in memory","A program is active; a process is passive","A process is a program in execution","A program has a PCB; a process does not"], ans:2},
+      {q:"Multitasking is primarily designed to provide:", opts:["Maximum CPU utilization","Interactive response time","Reduced memory usage","Increased throughput for batch jobs"], ans:1},
+      {q:"In multiprogramming, what does the CPU do when a process waits for I/O?", opts:["CPU halts until I/O completes","OS terminates the waiting process","Memory is freed immediately","CPU runs another process"], ans:3},
+      {q:"Dual-core processors typically share which cache level?", opts:["L1","L2","Registers","L3"], ans:3},
+      {q:"What type of clustering uses one machine as a hot standby?", opts:["Symmetric","Load-balanced","Distributed","Asymmetric"], ans:3},
+      {q:"Which is the fastest storage in the storage hierarchy?", opts:["SSD","HDD","RAM","CPU Registers"], ans:3},
+      {q:"A software interrupt is also called a:", opts:["Hardware interrupt","IRQ","Trap","Polling event"], ans:2},
+      {q:"Security in OS is concerned with:", opts:["Internal access control between processes","Translating logical to physical addresses","Defending the system against external and internal attacks","Managing CPU scheduling"], ans:2},
+    ]
+  },
+  {
+    id:2, title:"Chapter 2", subtitle:"OS Structure", color:"#f7b731",
+    topics:[
+      {q:"What services does an OS provide?", a:"User-facing: program execution, I/O operations, file system manipulation, communications, error detection. System-efficiency: resource allocation (CPU, memory, I/O), logging/accounting, protection (control access), security (defend against attacks)."},
+      {q:"What is Policy vs Mechanism? Why separate them?", a:"Mechanism: HOW something is done (e.g., timer-based CPU preemption). Policy: WHAT should be done / decisions made (e.g., how long each process's quantum should be). Separation allows flexibility: you can change policy (e.g., longer quanta for interactive processes) without changing the underlying mechanism (the timer hardware)."},
+      {q:"What is User Mode vs Kernel Mode?", a:"Dual-mode operation protects OS from user errors. Mode bit: 0 = kernel mode (full hardware access, privileged instructions allowed), 1 = user mode (restricted). User programs run in user mode. To request OS services, a program executes a system call (trap), which switches to kernel mode. After OS completes the service, it returns to user mode."},
+      {q:"What is a System Call? Give examples.", a:"A system call is a programmatic way a user program requests a service from the OS kernel. Categories: Process control (fork, exec, exit, wait), File management (open, read, write, close), Device management (ioctl), Information maintenance (getpid, time), Communications (pipe, socket, send, recv). Each call has a number; a system call interface looks up the number in a table."},
+      {q:"What are Windows vs Unix system calls?", a:"Unix/POSIX: fork() (create process), exec() (replace process image), open()/read()/write()/close() (file I/O), wait() (wait for child). Windows: CreateProcess(), CreateFile(), ReadFile()/WriteFile(), WaitForSingleObject(). Windows calls are generally more complex with more parameters."},
+      {q:"What is OS Implementation and Emulation?", a:"Implementation: OS written mostly in high-level language (C/C++) for portability. Small assembly portions for hardware-specific code (interrupt handlers, context switching). Emulation: running an OS designed for different hardware on another architecture via software translation. Virtual machines emulate an entire computer."},
+      {q:"What is Policy and Mechanism separation? Give a real example.", a:"Example: CPU scheduling. Mechanism: the hardware timer that fires an interrupt every N milliseconds (HOW preemption works). Policy: should we use Round Robin, Priority Scheduling, or MLFQ (WHAT process runs next). You could swap RR for priority scheduling without changing the timer mechanism at all."},
+      {q:"What is a Monolithic Kernel vs Microkernel?", a:"Monolithic: entire OS runs in kernel space (one large executable). Fast but complex and less reliable (bug anywhere can crash OS). Linux, Unix. Microkernel: minimal kernel (IPC, memory, scheduling); other services (file system, device drivers) run in user space. More reliable, easier to extend, but slower due to IPC overhead. Mach, QNX."},
+    ],
+    mcqs:[
+      {q:"What does OS 'policy' determine?", opts:["How something is done (the mechanism)","The hardware interface for drivers","The speed of system calls","What should be done / decisions made"], ans:3},
+      {q:"In User Mode, which category of instructions is forbidden?", opts:["Arithmetic instructions","Memory read instructions","Privileged instructions","Branch instructions"], ans:2},
+      {q:"What triggers a switch from user mode to kernel mode?", opts:["A loop instruction","A memory allocation in heap","An arithmetic overflow","A system call (trap)"], ans:3},
+      {q:"Which Unix system call creates a new process?", opts:["CreateProcess()","spawn()","newProc()","fork()"], ans:3},
+      {q:"What does exec() do to the calling process?", opts:["Creates a child process","Terminates the process","Waits for a child","Replaces the current process image with a new program"], ans:3},
+      {q:"Which kernel design runs file systems and device drivers in user space?", opts:["Monolithic kernel","Hybrid kernel","Layered kernel","Microkernel"], ans:3},
+      {q:"What is the main performance advantage of a monolithic kernel?", opts:["Better security","Smaller binary size","Easier debugging","Fast inter-component communication (all in kernel space)"], ans:3},
+      {q:"Emulation in OS context means:", opts:["Compiling OS from source code","Virtualizing memory addresses only","Running an OS designed for different hardware on another architecture","Writing OS in assembly language"], ans:2},
+      {q:"Separating policy from mechanism primarily provides:", opts:["Better performance","Smaller kernel size","Stronger security","Flexibility to change decisions without changing implementation"], ans:3},
+      {q:"Which of the following is NOT a category of system calls?", opts:["Process control","File management","Communications","Cache optimization"], ans:3},
+      {q:"The system call interface dispatches to the correct kernel routine using:", opts:["A linked list","Process priority","A system call number / lookup table","The program counter directly"], ans:2},
+      {q:"Which OS services are aimed at system efficiency rather than user convenience?", opts:["Program execution and I/O","Resource allocation, logging, and protection","Error detection and communications","File system manipulation"], ans:1},
+      {q:"The mode bit is set to 1 when the CPU is in:", opts:["Kernel mode","Supervisor mode","Interrupt mode","User mode"], ans:3},
+      {q:"Which Windows call is most equivalent to the Unix fork()+exec() pattern?", opts:["CreateThread()","SpawnProcess()","NewTask()","CreateProcess()"], ans:3},
+      {q:"What is the biggest disadvantage of a microkernel?", opts:["Poor reliability","Difficult to extend","Slower due to IPC overhead between user-space services","Larger kernel size"], ans:2},
+    ]
+  },
+  {
+    id:3, title:"Chapter 3", subtitle:"Processes", color:"#26de81",
+    topics:[
+      {q:"How is a Process laid out in Memory?", a:"Low to high addresses: Text (read-only code) → Data (initialized globals, BSS for uninitialized) → Heap (grows upward via malloc/new) → ... gap ... → Stack (grows downward, function frames, local vars, return addresses). Text and data are fixed size; heap and stack are dynamic and can collide if no limit."},
+      {q:"What are Process States? Draw the diagram.", a:"New → Ready → Running → Waiting → Terminated. New: being created (loaded into memory). Ready: in memory, waiting for CPU time. Running: currently executing on CPU. Waiting: blocked waiting for I/O or event. Terminated: finished, resources being reclaimed. Transitions: admitted (new→ready), scheduler dispatch (ready→running), I/O request (running→waiting), I/O complete (waiting→ready), exit (running→terminated), interrupt (running→ready)."},
+      {q:"What is a Long-term vs Short-term Scheduler?", a:"Long-term (job) scheduler: selects which processes from the job pool (disk) to load into memory. Controls degree of multiprogramming. Runs infrequently (seconds/minutes). Short-term (CPU) scheduler: selects which ready process to run next. Runs very frequently (milliseconds). Medium-term: swaps processes in/out of memory to control load."},
+      {q:"What is a Context Switch?", a:"Saving the complete state (context) of the running process into its PCB, and loading the saved state of the next process to run. State includes: CPU registers, program counter, stack pointer, memory maps, I/O status. It is pure overhead — no useful work done. Time: ~microseconds. Minimizing context switches improves performance."},
+      {q:"What is a Process Control Block (PCB)?", a:"OS data structure holding all info about a process. Contains: Process state, Process ID (PID), Program counter, CPU registers, CPU scheduling info (priority, queue pointers), Memory management info (page tables, base/limit registers), I/O status (open files, devices), Accounting info (CPU time used). One PCB per process."},
+      {q:"What is the Degree of Multiprogramming?", a:"The number of processes simultaneously resident in main memory. Higher degree = better CPU utilization (less idle time waiting for I/O). Controlled by the long-term scheduler. Trade-off: too many processes → each gets too little memory → thrashing. Must balance utilization with available memory."},
+      {q:"What is a Tree of Processes in Linux?", a:"Processes form a tree via parent-child relationships. Init (PID 1) is the root. fork() creates a child (copy of parent). Every process (except init) has a parent. pstree command shows this. Process groups and sessions build on this tree for signal delivery and terminal management."},
+      {q:"What is Process Creation? What does fork() do?", a:"fork(): creates a child process that is an exact copy of the parent (same code, data, heap, stack, open files). Returns 0 to child, child's PID to parent. exec(): replaces the process's memory with a new program. Shell uses fork()+exec() pattern: fork a child, child calls exec() to run the command, parent waits with wait()."},
+      {q:"What is an Orphan vs Zombie Process?", a:"Zombie: process has finished (exit() called) but parent hasn't called wait() yet. Entry remains in process table. Too many zombies waste process table entries. Orphan: process whose parent has terminated. Init (PID 1) adopts orphans and periodically calls wait() for them, preventing orphan zombies."},
+      {q:"What is Interprocess Communication (IPC)? Two models?", a:"Mechanisms allowing processes to communicate and synchronize. Two models: Shared Memory — processes share a region of memory (fast, but need synchronization). Message Passing — processes communicate via send()/receive() system calls (easier to implement in distributed systems, no shared memory needed, slower due to kernel involvement)."},
+      {q:"What is the Producer-Consumer Problem?", a:"Bounded buffer: producer generates items, consumer consumes them, shared buffer of size N. Problem: producer must wait if buffer full; consumer must wait if buffer empty. Race condition if no synchronization. Solution with semaphores: mutex (binary, protects buffer access), full (counting, tracks filled slots, init 0), empty (counting, tracks empty slots, init N)."},
+      {q:"What is Message Passing? Synchronization options?", a:"Processes use send(P, msg) and receive(Q, msg). Can be blocking (synchronous): sender blocks until receiver gets message; receiver blocks until message available. Non-blocking (asynchronous): sender sends and continues; receiver gets message or null. A rendezvous occurs when both send and receive are blocking."},
+      {q:"What are Pipes? Ordinary vs Named?", a:"Ordinary (anonymous) pipe: created with pipe() syscall, unidirectional (use 2 pipes for bidirectional), only between related processes (parent-child), disappears when both ends close. Named pipe (FIFO): created with mkfifo(), appears as file in filesystem, any two processes can use it, bidirectional on some OS, persists until explicitly deleted."},
+      {q:"What are Direct vs Indirect Communication?", a:"Direct: processes name each other explicitly — send(P, msg), receive(Q, msg). One link per pair. Indirect: messages sent to/received from mailboxes (ports) — send(mailbox_A, msg). Multiple processes can share a mailbox. More flexible; OS manages mailboxes."},
+    ],
+    mcqs:[
+      {q:"What is the correct memory layout order from low to high address?", opts:["Stack → Heap → Data → Text","Data → Text → Stack → Heap","Heap → Stack → Text → Data","Text → Data → Heap → Stack"], ans:3},
+      {q:"Which process state means the process is in memory but waiting for CPU time?", opts:["New","Running","Waiting","Ready"], ans:3},
+      {q:"What triggers the transition from Running state to Waiting state?", opts:["Scheduler dispatch","Process creation","Interrupt (preemption)","An I/O request"], ans:3},
+      {q:"Which of the following is NOT stored in a PCB?", opts:["Process state","Program counter","CPU registers","The program's source code"], ans:3},
+      {q:"What is a context switch described as in terms of useful work?", opts:["Highly efficient","Pure overhead — no useful work is performed","Speeds up process execution","Required for every instruction"], ans:1},
+      {q:"Which scheduler controls the degree of multiprogramming?", opts:["Short-term (CPU) scheduler","Medium-term scheduler","I/O scheduler","Long-term (job) scheduler"], ans:3},
+      {q:"A zombie process is one that:", opts:["Uses 100% CPU","Has finished but its parent has not called wait() yet","Has been orphaned by its parent","Is blocked waiting for I/O indefinitely"], ans:1},
+      {q:"When fork() returns, what value does the child process receive?", opts:["The parent's PID","-1 (error code)","The child's own PID","0"], ans:3},
+      {q:"Which IPC method is faster for large data on the same machine?", opts:["Message passing via kernel","Named pipes","Sockets","Shared memory"], ans:3},
+      {q:"Named pipes differ from ordinary pipes in that they:", opts:["Are always faster","Are bidirectional only","Only work between parent and child","Can be used by unrelated processes"], ans:3},
+      {q:"The purpose of wait() in a parent process is to:", opts:["Suspend execution for a fixed interval","Wait for I/O to complete","Release memory immediately","Wait for a child to terminate and collect its exit status"], ans:3},
+      {q:"Who adopts orphan processes in Linux to prevent zombie build-up?", opts:["The process that created the orphan","The shell process","The last running process","Init (PID 1)"], ans:3},
+      {q:"In indirect IPC communication, messages are sent to:", opts:["A specific process by name","A specific port/mailbox","Shared memory regions","The OS kernel directly"], ans:1},
+      {q:"The shell uses which pattern to execute a command?", opts:["exec() only","fork() only","clone() then exec()","fork() then exec()"], ans:3},
+      {q:"What is a rendezvous in message passing?", opts:["When sender and receiver are in different processes","When both send and receive are blocking (synchronous)","When a message is lost","When the mailbox is full"], ans:1},
+      {q:"The short-term scheduler runs:", opts:["Every few seconds","Once at system boot","Very frequently (every few milliseconds)","Only when a new process is created"], ans:2},
+      {q:"Shared memory IPC requires __ compared to message passing.", opts:["More kernel involvement","Less synchronization","Explicit synchronization between processes","Slower data transfer"], ans:2},
+    ]
+  },
+  {
+    id:4, title:"Chapter 4", subtitle:"Threads", color:"#45aaf2",
+    topics:[
+      {q:"Why do Threads exist? What problem do they solve?", a:"Creating a new process is expensive (copy address space, PCB, etc.). Threads allow a single process to do multiple things concurrently while sharing the same address space. Benefits: Responsiveness (UI thread + worker thread), Resource sharing (share code/data without IPC), Economy (10-100x cheaper than process creation), Scalability (run truly parallel on multi-core CPUs)."},
+      {q:"What do Threads Share vs Own?", a:"Shared (per process): code (text), global data, heap, open file descriptors, signals, environment variables. Per-thread (own): stack, registers, program counter, thread ID, errno. Because threads share heap and globals, they need synchronization when accessing shared data."},
+      {q:"What is Concurrency vs Parallelism?", a:"Concurrency: multiple tasks making progress — can happen on a single core via time-slicing (interleaving). Parallelism: multiple tasks literally running simultaneously — requires multiple hardware execution units. Data parallelism: same operation on different data subsets. Task parallelism: different operations run simultaneously. Parallelism ⊂ Concurrency."},
+      {q:"What are User-Level Threads vs Kernel Threads?", a:"User-level threads: managed entirely by user-space library (e.g., POSIX Pthreads with user implementation). Fast to create/switch. But: if one thread blocks on I/O, entire process blocks (kernel sees one thread). Kernel threads: OS knows about each thread, schedules them independently. If one blocks, others run. Slower creation. Linux/Windows use kernel threads."},
+      {q:"What are the Three Threading Models?", a:"Many-to-One: many user threads mapped to one kernel thread. Simple, portable, but no true parallelism and one block blocks all. One-to-One: each user thread → one kernel thread. True parallelism, one block doesn't affect others. Overhead of creating kernel threads. Used by Linux, Windows. Many-to-Many: N user threads → M kernel threads (M≤N). Flexible, avoids both downsides. Complex to implement."},
+      {q:"What are the Benefits of Threads (4 main ones)?", a:"1. Responsiveness: program remains responsive even if part is blocked (e.g., web browser loads page while still accepting clicks). 2. Resource Sharing: threads share process memory, no need for IPC. 3. Economy: creating/switching threads much cheaper than processes. 4. Scalability: threads can run in parallel on multiple cores, improving performance for CPU-bound tasks."},
+      {q:"What is the Program Counter in context of threads?", a:"Each thread has its own program counter (PC) that tracks where that specific thread is executing in the code. Since threads can be at different points in the same (or different) functions, each needs its own PC. This is stored per-thread in the thread's context alongside its register set."},
+      {q:"What is a Thread Pool?", a:"Create a fixed number of threads at startup, waiting for work. When a task arrives, assign it to an idle thread. Benefits: no overhead of creating/destroying threads per task, limits total thread count (prevents resource exhaustion), can be tuned to match hardware cores. Used in web servers, database connection pools."},
+    ],
+    mcqs:[
+      {q:"What resources do threads within the same process share?", opts:["Stack and registers","Program counter only","Stack and heap","Code (text), global data, and heap"], ans:3},
+      {q:"What does each thread own exclusively (not shared)?", opts:["Heap memory","Global variables","Open file descriptors","Stack and program counter"], ans:3},
+      {q:"Which threading model provides true parallelism on multi-core hardware?", opts:["Many-to-One","One-to-Many","Hybrid user-level","One-to-One"], ans:3},
+      {q:"What is the core problem with the Many-to-One threading model?", opts:["Too many kernel threads are created","Requires too much memory","Cannot run on single-core CPUs","One blocking thread blocks ALL threads in the process"], ans:3},
+      {q:"Parallelism requires:", opts:["A single core running tasks very quickly","Multiple hardware execution units running tasks simultaneously","Time-slicing between tasks","User-level thread management"], ans:1},
+      {q:"Linux and Windows both use which threading model?", opts:["Many-to-One","Many-to-Many","One-to-Many","One-to-One"], ans:3},
+      {q:"What is a thread pool?", opts:["A collection of processes sharing memory","A kernel data structure for scheduling","A group of threads with same priority","Pre-created threads waiting to be assigned work"], ans:3},
+      {q:"What makes thread creation cheaper than process creation?", opts:["Threads don't need a PCB entry","Threads don't require CPU registers","Threads don't need scheduling","Threads share the parent process's existing address space"], ans:3},
+      {q:"Which benefit of threads keeps a UI responsive while a background task runs?", opts:["Economy","Scalability","Resource Sharing","Responsiveness"], ans:3},
+      {q:"User-level threads are managed by:", opts:["The OS kernel","Hardware","A user-space thread library","The CPU scheduler"], ans:2},
+      {q:"In the Many-to-Many model, if M user threads map to N kernel threads, the relationship is:", opts:["M < N always","M = N always","M and N are unrelated","M ≥ N"], ans:3},
+      {q:"Concurrency on a single-core CPU is achieved through:", opts:["Hardware threads","True simultaneous execution","Hyper-threading","Time-slicing (interleaving execution)"], ans:3},
+      {q:"Data parallelism means:", opts:["Different tasks run simultaneously on different data","Threads sharing the same data structure","Parallel I/O operations","The same operation applied to different data subsets simultaneously"], ans:3},
+      {q:"Which of the following is NOT a benefit of threads?", opts:["Responsiveness","Economy","Scalability","Resource isolation (separate address spaces)"], ans:3},
+      {q:"The program counter in a thread's context is used to:", opts:["Count instructions executed","Store thread priority","Measure performance","Track where that specific thread is currently executing"], ans:3},
+    ]
+  },
+  {
+    id:5, title:"Chapter 5", subtitle:"CPU Scheduling", color:"#a55eea",
+    topics:[
+      {q:"What are the CPU Scheduling Criteria?", a:"CPU Utilization: keep CPU as busy as possible (100% ideal). Throughput: number of processes completed per time unit. Turnaround Time: total time from submission to completion. Waiting Time: total time spent in ready queue. Response Time: time from request to first response (important for interactive systems). Minimize turnaround, waiting, response. Maximize utilization, throughput."},
+      {q:"What is FCFS Scheduling? What is the Convoy Effect?", a:"First-Come First-Served: non-preemptive, processes run in arrival order. Simple to implement (FIFO queue). Convoy Effect: one long CPU-bound process holds CPU while short I/O-bound processes queue up. Average waiting time can be very high. Example: processes with burst times 24, 3, 3 → avg wait = (0+24+27)/3 = 17ms if 24 arrives first, but only 3ms if short jobs go first."},
+      {q:"What is SJF Scheduling? Preemptive vs Non-preemptive?", a:"Shortest Job First: schedules process with shortest next CPU burst. Provably optimal (minimizes average waiting time). Problem: can't know future burst length — estimated via exponential averaging: τ(n+1) = α·t(n) + (1-α)·τ(n). Non-preemptive SJF: once started, runs to completion. Preemptive SJF (SRTF - Shortest Remaining Time First): if new process arrives with shorter remaining time, preempt current process."},
+      {q:"What is Priority Scheduling? What are Starvation and Aging?", a:"Each process has a priority (integer). CPU given to highest priority. Can be preemptive or non-preemptive. Internal priorities: time limits, memory, I/O vs CPU. External: importance set by user. Problem: Starvation — low priority processes may wait indefinitely. Solution: Aging — periodically increase priority of waiting processes (e.g., every 15 minutes, increment priority). Eventually even low-priority process gets CPU."},
+      {q:"What is Round Robin (RR) Scheduling?", a:"Each process gets a time quantum q (typically 10-100ms). After quantum, process preempted and added to end of ready queue. Fair, designed for time-sharing. Performance: if q large → FCFS. If q small → high context switch overhead. Rule of thumb: 80% of CPU bursts should be shorter than q. Average waiting time can be high but response time is good."},
+      {q:"What is Multilevel Queue? What is Multilevel Feedback Queue?", a:"MLQ: ready queue split into multiple queues (e.g., foreground/interactive, background/batch). Each queue has its own scheduling algorithm. Multilevel Feedback Queue allows processes to move between queues based on behavior. CPU-bound processes migrate to lower-priority queues; I/O-bound stay high. Most flexible, used in practice (Linux CFS is inspired by this)."},
+      {q:"What is Multiple-Processor Scheduling? Push vs Pull Migration?", a:"Asymmetric: one master processor handles all scheduling decisions. Symmetric (SMP): each processor is self-scheduling, has its own ready queue or uses shared queue. Processor Affinity: process prefers to run on same CPU (warm cache). Push migration: a task periodically checks load across processors and pushes tasks from overloaded ones. Pull migration: idle processor pulls a task from a busy processor's queue."},
+      {q:"What is Earliest Deadline First (EDF) Scheduling?", a:"Dynamic priority: process with earliest absolute deadline runs next. Priority changes as deadlines approach. Optimal for uniprocessor: if any scheduling can meet all deadlines, EDF can. Works for both periodic and aperiodic tasks. CPU utilization can reach 100% (unlike Rate Monotonic which caps at ~69%). Requires knowing deadlines at arrival."},
+      {q:"What is the difference between preemptive and non-preemptive scheduling?", a:"Non-preemptive: once CPU is given to a process, it runs until it terminates or voluntarily yields (I/O request, wait). Simpler, no mid-instruction interruption. Preemptive: OS can forcibly take CPU from a running process (e.g., timer interrupt, higher priority arrival). Better for interactive systems and real-time. Requires careful handling of shared data (kernel data structures must be protected with locks)."},
+    ],
+    mcqs:[
+      {q:"Which scheduling algorithm provably minimizes average waiting time?", opts:["FCFS","Round Robin","Priority Scheduling","SJF (Shortest Job First)"], ans:3},
+      {q:"The Convoy Effect in FCFS occurs when:", opts:["Multiple short processes block a long process","All processes have equal burst time","High-priority processes starve low-priority ones","One long process causes short processes to wait behind it"], ans:3},
+      {q:"What problem does the Aging technique solve in scheduling?", opts:["High average waiting time","Convoy effect","Context switch overhead","Starvation of low-priority processes"], ans:3},
+      {q:"In Round Robin, what happens after a process's time quantum expires?", opts:["The process terminates","The process's priority increases","The process moves to Waiting state","The process is preempted and added to the end of the ready queue"], ans:3},
+      {q:"Which scheduling algorithm is best suited for interactive time-sharing systems?", opts:["FCFS","Non-preemptive SJF","Non-preemptive Priority","Round Robin"], ans:3},
+      {q:"The main practical problem with SJF is:", opts:["High context switch overhead","Causes starvation always","Only works for batch systems","Future CPU burst length is unknown and must be estimated"], ans:3},
+      {q:"SRTF (preemptive SJF) preempts the running process when:", opts:["Its time quantum expires","Its priority decreases","A new process arrives with a shorter remaining burst time","An I/O interrupt occurs"], ans:2},
+      {q:"CPU utilization measures:", opts:["Number of processes completed per unit time","Total time from process submission to completion","Time the CPU spends actually doing useful work (as a percentage)","Time spent in the ready queue"], ans:2},
+      {q:"Turnaround time is defined as:", opts:["Time in the ready queue only","Time from first response to completion","Time from process submission to its completion","CPU time used by the process"], ans:2},
+      {q:"In Multilevel Feedback Queue, processes can move between queues based on:", opts:["Their initial priority only","Memory usage","The CPU's current load","Their observed CPU-burst behavior"], ans:3},
+      {q:"Push migration in multiprocessor scheduling means:", opts:["An idle CPU pulls tasks from a busy CPU","Processes migrate to faster CPUs","The OS assigns all tasks to one CPU","A task periodically checks load and moves tasks away from overloaded CPUs"], ans:3},
+      {q:"Earliest Deadline First (EDF) is described as optimal because:", opts:["It always minimizes waiting time","If any feasible schedule exists to meet all deadlines, EDF will find it","It requires the least CPU overhead","It prevents starvation better than all others"], ans:1},
+      {q:"Non-preemptive scheduling means:", opts:["OS can take CPU away at any time","Each process gets a fixed time slice","Process runs until it terminates or voluntarily yields CPU","All processes have equal priority"], ans:2},
+      {q:"A very small time quantum in Round Robin causes:", opts:["Behavior similar to FCFS","Starvation of short processes","High context switch overhead","Zero waiting time"], ans:2},
+      {q:"Processor affinity in SMP scheduling refers to:", opts:["All processes running on one CPU","CPUs being assigned to specific users","A process's preference to run on the same CPU for cache warmth","Perfectly balanced load distribution"], ans:2},
+      {q:"Which scheduling criterion matters most for real-time systems?", opts:["Throughput","CPU utilization","Turnaround time","Meeting deadlines (response time)"], ans:3},
+      {q:"What is the disadvantage of priority scheduling without aging?", opts:["High overhead per context switch","Poor response time for all processes","Starvation: low-priority processes may never execute","Cannot handle preemption"], ans:2},
+    ]
+  },
+  {
+    id:6, title:"Chapter 6", subtitle:"Synchronization", color:"#fd9644",
+    topics:[
+      {q:"What is a Race Condition?", a:"When multiple processes/threads access and manipulate shared data concurrently, and the final value depends on the order of execution. Example: two threads both do count++ (read-modify-write). If interleaved, one increment can be lost. Result is non-deterministic. Prevented by ensuring mutual exclusion during critical sections."},
+      {q:"What is the Critical Section Problem?", a:"Each process has a critical section (code accessing shared data). Need protocol where: Entry section requests permission to enter CS, exit section signals leaving. Problem: design entry/exit code satisfying 3 requirements. Critical section must execute as atomic operation from perspective of other processes."},
+      {q:"What are the 3 Requirements for CS Solutions?", a:"1. Mutual Exclusion: if process Pi is in CS, no other process can be in CS. 2. Progress: if no process is in CS and some want to enter, only those not in remainder section participate in deciding who enters, and decision cannot be postponed indefinitely. 3. Bounded Waiting: there exists a bound on number of times other processes can enter CS after a process requests entry (no starvation)."},
+      {q:"What is Peterson's Solution?", a:"Two-process solution using shared: int turn and bool flag[2]. To enter CS: flag[i]=true; turn=j; while(flag[j] && turn==j); // busy wait. Exit: flag[i]=false. Proof: satisfies all 3 requirements. Limitation: only works for 2 processes. Modern hardware may reorder instructions — need memory barriers to guarantee correctness on modern CPUs."},
+      {q:"What are Mutex Locks?", a:"Simplest synchronization tool. acquire() sets lock to unavailable (busy-waits if already locked), release() sets lock back to available. acquire() and release() must be atomic (implemented with hardware atomic instructions like test-and-set or compare-and-swap). Spinlock: process busy-waits (spinning) — wastes CPU but no context switch overhead. Good for short CS on multicore systems."},
+      {q:"What is a Semaphore? Binary vs Counting?", a:"Integer variable S. wait(S): if S≤0, block; else S--. signal(S): S++, wake a waiting process if any. Binary semaphore (mutex): S ∈ {0,1}, equivalent to mutex lock. Counting semaphore: S = number of available resources. Advantage over mutex: can solve more complex synchronization (ordering, resource counting). Must avoid busy waiting — use a waiting queue instead."},
+      {q:"What are Classic Semaphore Problems?", a:"Ordering: Process B must execute after A: S=0; A executes, then signal(S); B: wait(S), then execute. Resource counting: 5 database connections: S=5; each user: wait(S) to get connection, signal(S) to release. Mutual exclusion: S=1 (binary semaphore). Semaphores can suffer from deadlock if processes do wait() calls in wrong order."},
+      {q:"What is a Monitor?", a:"High-level ADT for synchronization. Programmer defines shared variables, procedures, and initialization. Only one process can be active inside monitor at a time (mutual exclusion enforced automatically). Condition variables: wait() — suspends calling process, releases monitor lock; signal() — wakes one waiting process. Easier to use correctly than semaphores. Implemented in Java (synchronized keyword, wait(), notifyAll())."},
+      {q:"What is Priority Inversion? How is it solved?", a:"High-priority task H waits for low-priority task L to release a lock. Medium-priority task M (no lock needed) preempts L, causing H to wait as long as M runs — priority is inverted. Solution: Priority Inheritance — L temporarily inherits H's priority while holding the lock, preventing M from preempting L. Used in real-time OS. Famous example: Mars Pathfinder mission had this bug."},
+    ],
+    mcqs:[
+      {q:"A race condition occurs when:", opts:["CPUs compete for memory bandwidth","Two processes access different resources","The OS scheduler makes a wrong decision","The outcome of execution depends on the order of concurrent accesses to shared data"], ans:3},
+      {q:"Which is NOT one of the three requirements for a critical section solution?", opts:["Mutual exclusion","Progress","Preemption","Bounded waiting"], ans:2},
+      {q:"Peterson's solution is designed for how many processes?", opts:["1","Any number","Up to 4","2"], ans:3},
+      {q:"The value of a binary semaphore is restricted to:", opts:["0 to N","0 to infinity","-1 to 1","0 and 1 only"], ans:3},
+      {q:"What does wait(S) do when the semaphore value S ≤ 0?", opts:["Returns immediately without blocking","Sets S to 0","Increments S","Blocks the calling process"], ans:3},
+      {q:"A spinlock wastes CPU by:", opts:["Performing unnecessary I/O","Creating extra threads","Making repeated system calls","Busy-waiting in a loop until the lock is available"], ans:3},
+      {q:"A monitor ensures mutual exclusion by:", opts:["Using a binary semaphore inside","Hardware support","Requiring programmers to manually acquire locks","Allowing only one process to be active inside it at a time (automatically)"], ans:3},
+      {q:"What does wait() on a condition variable inside a monitor do?", opts:["Waits for a fixed time","Signals all waiting processes","Increments the condition variable","Suspends the process and releases the monitor lock"], ans:3},
+      {q:"Priority Inversion occurs when:", opts:["All tasks have the same priority","The OS lowers a task's priority","A high-priority task runs before a low-priority one","A medium-priority task prevents a low-priority task from releasing a resource needed by a high-priority task"], ans:3},
+      {q:"Mutual Exclusion in the CS problem means:", opts:["Processes exclude each other from the OS","Processes cannot communicate","Processes agree to take turns","Only one process can be in its critical section at a time"], ans:3},
+      {q:"Java implements monitor-like synchronization using the:", opts:["volatile keyword","atomic keyword","mutex keyword","synchronized keyword"], ans:3},
+      {q:"Which hardware instruction is commonly used to implement atomic lock operations?", opts:["MOV (move)","JMP (jump)","NOP (no operation)","Test-and-Set or Compare-and-Swap"], ans:3},
+      {q:"Counting semaphores are used to:", opts:["Implement only binary choices","Count the number of processes","Measure CPU usage","Track and control access to a pool of N resources"], ans:3},
+      {q:"Bounded Waiting requirement means:", opts:["Each critical section has a bounded execution time","Wait time is proportional to priority","The CS code must be a fixed length","A waiting process enters its CS within a finite, bounded number of turns"], ans:3},
+      {q:"If semaphore wait() calls are performed in the wrong order, what problem can arise?", opts:["Starvation","Race condition","Priority inversion","Deadlock"], ans:3},
+    ]
+  },
+  {
+    id:7, title:"Chapter 7", subtitle:"Classic Sync Problems", color:"#fc5c65",
+    topics:[
+      {q:"What is the Bounded-Buffer Problem?", a:"Producer creates items, puts in buffer (size N). Consumer takes items. Shared: mutex (=1), full (=0), empty (=N). Producer: wait(empty); wait(mutex); add item; signal(mutex); signal(full). Consumer: wait(full); wait(mutex); remove item; signal(mutex); signal(empty). Order matters: wait(empty/full) before wait(mutex) to avoid deadlock."},
+      {q:"What is the Readers-Writers Problem?", a:"Multiple readers can read simultaneously (safe). Writers need exclusive access (no readers or other writers). First RW problem: no reader kept waiting unless writer has lock (writer may starve). Second RW problem: once writer ready, no new reader starts (reader may starve). Solution uses semaphores: rw_mutex (writer's mutex), mutex (protects read_count), read_count variable."},
+      {q:"What is the Dining Philosophers Problem? (VVI)", a:"5 philosophers at round table, 5 forks between them. Eat: need both adjacent forks. Think: put down both. Naive solution → deadlock (all pick left fork). Solutions: Allow max 4 philosophers at table simultaneously. Pick up both forks atomically (mutex). Odd philosophers pick left first, even pick right first. Use a waiter (monitor) who grants permission. The VVI marker means this is likely a key exam question!"},
+      {q:"What can go wrong in Dining Philosophers if done naively?", a:"All 5 philosophers pick up their left fork simultaneously. Now each waits for right fork, held by neighbor. Circular wait → deadlock. All 5 starve. This illustrates that even symmetric solutions can fail. The problem demonstrates challenges of resource allocation without global knowledge or coordination."},
+      {q:"How does a Monitor solution fix Dining Philosophers?", a:"Define states: THINKING, HUNGRY, EATING. A philosopher can eat only if both neighbors are not eating. test(i) function checks: if I'm HUNGRY and both neighbors not EATING → set EATING, signal self[i]. pickup(i): set HUNGRY, test, if can't eat wait on self[i]. putdown(i): set THINKING, test both neighbors (they might now be able to eat)."},
+    ],
+    mcqs:[
+      {q:"In Bounded-Buffer, which semaphore prevents the producer from adding to a full buffer?", opts:["mutex","full","binary","empty"], ans:3},
+      {q:"In the first Readers-Writers variant, who may starve?", opts:["Readers","Both readers and writers","Neither","Writers"], ans:3},
+      {q:"The naive Dining Philosophers solution fails because:", opts:["Philosophers eat too slowly","There are only 4 forks for 5 philosophers","Philosophers cannot communicate","All pick up the left fork simultaneously, creating a circular wait → deadlock"], ans:3},
+      {q:"Which is NOT a valid solution to the Dining Philosophers problem?", opts:["Allow at most 4 philosophers at the table simultaneously","Pick up both forks atomically","Odd left first, even right first","All philosophers always pick up the left fork first"], ans:3},
+      {q:"The correct producer sequence in Bounded-Buffer is:", opts:["wait(mutex) → wait(empty) → add → signal(full) → signal(mutex)","wait(full) → wait(mutex) → add → signal(mutex) → signal(empty)","wait(mutex) → add → signal(mutex)","wait(empty) → wait(mutex) → add → signal(mutex) → signal(full)"], ans:3},
+      {q:"Multiple readers can read concurrently because:", opts:["Readers have higher priority","The OS permits it by default","Readers use separate memory copies","Reading does not modify shared data — no consistency issue"], ans:3},
+      {q:"The second Readers-Writers variant prioritizes:", opts:["Equal time for all","First-come first-served","Readers (no reader kept waiting)","Writers (once a writer is ready, no new reader is admitted)"], ans:3},
+      {q:"What is the initial value of the 'full' semaphore in Bounded-Buffer?", opts:["N (buffer size)","1","-1","0"], ans:3},
+      {q:"What is the initial value of the 'empty' semaphore in Bounded-Buffer?", opts:["0","1","-1","N (buffer size)"], ans:3},
+      {q:"The Bounded-Buffer problem is also known as the:", opts:["Dining-Philosophers problem","Readers-Writers problem","Sleeping Barber problem","Producer-Consumer problem"], ans:3},
+      {q:"Why must wait(empty) come BEFORE wait(mutex) for the producer?", opts:["For better performance","It actually doesn't matter","To ensure fairness between producers","To prevent deadlock (avoid holding mutex while blocked on empty)"], ans:3},
+      {q:"In the monitor solution to Dining Philosophers, when can philosopher i eat?", opts:["When at least one neighbor is thinking","When they have been waiting the longest","When the monitor grants permission arbitrarily","When BOTH neighbors are NOT currently eating"], ans:3},
+      {q:"Allowing at most N-1 philosophers at the table prevents deadlock because:", opts:["It reduces the number of forks needed","Circular wait cannot form — at least one philosopher can always eat","It gives each philosopher more time","It prevents starvation"], ans:1},
+      {q:"In the Readers-Writers problem, the rw_mutex semaphore is used by:", opts:["Only readers","Only writers and the first/last reader","Only readers and not writers","All readers equally"], ans:1},
+      {q:"The 'VVI' annotation on Dining Philosophers most likely means:", opts:["Very Verbose Information","Verified Valid Implementation","Virtual Variable Interface","Very Very Important (key exam topic)"], ans:3},
+    ]
+  },
+  {
+    id:8, title:"Chapter 8", subtitle:"Deadlocks", color:"#2bcbba",
+    topics:[
+      {q:"What are the 4 Necessary Conditions for Deadlock?", a:"1. Mutual Exclusion: at least one resource held in non-sharable mode. 2. Hold and Wait: a process holds at least one resource AND is waiting to acquire additional resources held by others. 3. No Preemption: resources can only be released voluntarily by the holding process. 4. Circular Wait: P1 waits for P2, P2 waits for P3, ..., Pn waits for P1. ALL FOUR must hold simultaneously."},
+      {q:"What is a Resource Allocation Graph (RAG)?", a:"Directed graph to represent resource allocation state. Circles = processes. Squares = resource types (dots inside = instances). Assignment edge: resource → process (process holds it). Request edge: process → resource (process wants it). If graph has no cycle → no deadlock. If cycle exists and each resource has only one instance → deadlock. Multiple instances + cycle → possible deadlock (need Banker's algorithm to check)."},
+      {q:"What are the 4 Ways to Handle Deadlock?", a:"1. Prevention: ensure at least one of the 4 conditions can never hold. 2. Avoidance: use extra information (max claim) to avoid entering unsafe states. 3. Detection and Recovery: allow deadlock to occur, periodically detect it, recover. 4. Ignorance (Ostrich Algorithm): pretend deadlock can't happen. Used by most commercial OS (Windows, Linux) — deadlock is rare, and detection overhead isn't worth it. Just reboot or kill process."},
+      {q:"What is Deadlock Prevention?", a:"Attack each condition: Mutual Exclusion: make resources sharable (not always possible). Hold and Wait: request all resources at once before starting (low utilization), or release all before requesting more. No Preemption: if waiting for resource, release held resources. Circular Wait: impose total ordering on resource types; always request in increasing order. Circular wait prevention is most practical."},
+      {q:"What is Deadlock Avoidance? What is a Safe State?", a:"Requires processes to declare max resource needs upfront. Safe state: a sequence P1, P2, ..., Pn exists where each Pi can get needed resources from available + resources held by processes before Pi. If in safe state → no deadlock. OS only grants requests that keep system in safe state. Unsafe state doesn't guarantee deadlock, but risk exists. Banker's Algorithm determines if state is safe."},
+      {q:"How does Banker's Algorithm work?", a:"When process requests resources: 1. If request ≤ need and request ≤ available, tentatively allocate. 2. Run Safety Algorithm: find a process whose needs can be met with currently available resources, simulate its completion, add its resources to available, repeat. If all processes finish → safe → grant request. Else → unsafe → deny request (process waits). O(n²·m) where n=processes, m=resource types."},
+      {q:"What is Deadlock Detection?", a:"Allow deadlock to occur. Single instance resources: use wait-for graph (simplified RAG, only processes). Cycle in wait-for graph → deadlock. Multiple instances: use algorithm similar to Banker's to find processes that can finish. Run periodically (tradeoff: frequent = overhead, infrequent = more resources stuck longer). Triggered when CPU utilization drops."},
+      {q:"What is Recovery from Deadlock?", a:"Process Termination: kill all deadlocked processes (simple but expensive), or kill one at a time until cycle broken (costly). Resource Preemption: select victim (minimize cost — lowest priority, least CPU used, least resources held), preempt its resources. Rollback: victim returns to safe state (needs checkpointing). Risk: starvation (same process always victim) — use count of how many times preempted."},
+    ],
+    mcqs:[
+      {q:"Which of the four deadlock conditions is stated correctly?", opts:["Preemption: resources can be taken forcibly","No Hold and Wait: process waits without holding anything","Sharing: resources are used by many at once","No Preemption: resources can only be released voluntarily"], ans:3},
+      {q:"In a Resource Allocation Graph with single-instance resources, a cycle means:", opts:["Possible deadlock only","No deadlock","Starvation","Definite deadlock"], ans:3},
+      {q:"Which deadlock handling method uses the Banker's Algorithm?", opts:["Prevention","Detection","Ignorance","Avoidance"], ans:3},
+      {q:"What is a safe state in deadlock avoidance?", opts:["A state where no process is blocked","A state where all resources are currently free","A state with no circular wait at this moment","A state where a safe sequence exists allowing all processes to eventually complete"], ans:3},
+      {q:"The Ostrich Algorithm for deadlocks means:", opts:["Actively prevent all deadlocks","Detect and recover quickly","Use avoidance algorithms","Ignore the possibility of deadlock"], ans:3},
+      {q:"Which real-world OS approach is taken by Windows and Linux regarding deadlocks?", opts:["Prevention","Avoidance (Banker's Algorithm)","Detection and recovery","Ignorance"], ans:3},
+      {q:"Deadlock prevention works by ensuring:", opts:["All processes run simultaneously","Resources are always available","The system monitors resource usage","At least one of the four necessary conditions cannot hold"], ans:3},
+      {q:"To prevent Circular Wait, the most practical approach is:", opts:["Request all resources at once","Release all resources before requesting new ones","Use only sharable resources","Impose a total ordering on resource types and always request in order"], ans:3},
+      {q:"Banker's Algorithm grants a resource request only if:", opts:["The process has waited long enough","The process has the highest priority","There are enough free resources right now","The resulting allocation state is safe"], ans:3},
+      {q:"Repeatedly selecting the same process as a victim in resource preemption risks:", opts:["Deadlock","Race conditions","Priority inversion","Starvation of that process"], ans:3},
+      {q:"Hold and Wait can be prevented by:", opts:["Allowing forcible preemption of resources","Imposing resource ordering","Making resources sharable","Requiring a process to request all resources before starting"], ans:3},
+      {q:"A wait-for graph is used for deadlock detection when:", opts:["Multiple instances of each resource exist","Resources have no instances","All resources are sharable","Each resource has only a single instance"], ans:3},
+      {q:"Deadlock detection is often triggered when:", opts:["A new process is created","Any resource is requested","A resource is released","CPU utilization drops significantly"], ans:3},
+      {q:"Rollback in deadlock recovery means:", opts:["Terminating all deadlocked processes at once","Restarting the OS","Releasing all resources system-wide","Reverting a victim process to a previously saved checkpoint state"], ans:3},
+      {q:"An unsafe state in deadlock avoidance means:", opts:["Deadlock has already occurred","All processes will definitely deadlock","No requests can be granted","Deadlock might occur — the OS cannot guarantee all processes can complete"], ans:3},
+      {q:"Deadlock avoidance requires knowing, in advance, each process's:", opts:["Priority level","Exact execution time","Maximum resource requirements","CPU burst length"], ans:2},
+    ]
+  },
+  {
+    id:9, title:"Chapter 9", subtitle:"Memory Management", color:"#eb3b5a",
+    topics:[
+      {q:"What is the role of Memory Management in OS?", a:"Keeps track of which memory parts are in use and by whom. Decides which processes (or parts) to move in/out of memory. Allocates and deallocates memory space. Translates logical addresses (what program uses) to physical addresses (actual RAM location) via hardware MMU (Memory Management Unit)."},
+      {q:"What is Logical vs Physical Address Space?", a:"Logical (virtual) address: generated by CPU, what program 'sees' (starts at 0). Physical address: actual address in memory hardware. MMU (Memory Management Unit) translates logical→physical at runtime using a relocation register (base register). Logical address + base register = physical address. Provides memory protection and relocation."},
+      {q:"What is Swapping?", a:"Moving an entire process from main memory to backing store (disk) and back. Allows more processes than fit in RAM. Roll out, roll in (for priority-based scheduling). Context switch time increases dramatically with swapping (transfer time proportional to process size). Modern systems use paging instead. Mobile OS typically don't swap — instead terminate apps."},
+      {q:"What is Swapping on Mobile Systems?", a:"iOS/Android generally don't support traditional swapping because: Flash memory has limited write cycles, flash I/O slower relative to RAM, mobile apps designed to be killed and restarted. Instead: iOS asks apps to voluntarily relinquish memory. Android terminates processes (LRU order) when memory needed. App state saved to flash for quick restart."},
+      {q:"What is Contiguous Allocation?", a:"Each process stored in one contiguous block of memory. Base register: start of process's memory. Limit register: size. MMU checks: base ≤ address < base+limit. Two approaches: Fixed partitions (memory divided into fixed chunks — internal fragmentation, unused space within partition). Variable partitions (partitions sized to process — external fragmentation, small holes between processes)."},
+      {q:"What is External vs Internal Fragmentation?", a:"Internal fragmentation: allocated block larger than needed; wasted space is INSIDE the allocation. Occurs with fixed-size partitions and paging (last page may not be full). External fragmentation: free memory exists but not contiguous; total free space sufficient but spread in small chunks. Occurs with variable partitions. Solution: Compaction (shuffle processes together) — expensive."},
+      {q:"What are Multi-Partition Allocation strategies?", a:"First Fit: allocate the FIRST hole big enough (fast, tends to leave large holes at end). Best Fit: allocate the SMALLEST hole that fits (least waste per allocation, but leaves tiny useless holes, slower). Worst Fit: allocate the LARGEST hole (leaves large leftover hole — better for future, but no benefit in practice). First fit and best fit better than worst fit."},
+      {q:"What is Thrashing?", a:"A process keeps paging: spending more time handling page faults than executing instructions. Cause: process doesn't have enough frames for its working set. CPU scheduler sees low utilization, loads more processes → even less frames per process → more faults → CPU utilization collapses. Solution: Working Set Model — give each process frames for its current working set (set of pages used recently)."},
+    ],
+    mcqs:[
+      {q:"What hardware component translates logical addresses to physical addresses?", opts:["CPU scheduler","Cache controller","I/O controller","MMU (Memory Management Unit)"], ans:3},
+      {q:"Which allocation strategy causes external fragmentation?", opts:["Fixed partitions","Paging","Segmentation with paging","Variable partitions"], ans:3},
+      {q:"Internal fragmentation is wasted space:", opts:["Between allocated memory blocks","On the disk","In the CPU registers","Inside an allocated block (allocated more than needed)"], ans:3},
+      {q:"Which allocation strategy leaves the largest remaining hole?", opts:["First Fit","Best Fit","All leave the same size hole","Worst Fit"], ans:3},
+      {q:"Thrashing is caused by:", opts:["Too many CPU-bound processes","Memory leaks","Slow disk I/O","A process not having enough frames for its working set"], ans:3},
+      {q:"Swapping moves:", opts:["Individual pages to disk","Cache data to RAM","Register values to memory","An entire process to backing store (disk)"], ans:3},
+      {q:"Why do mobile systems typically avoid traditional swapping?", opts:["Mobile CPUs lack MMUs","Mobile apps don't use enough memory","Mobile OS don't support processes","Flash memory has limited write cycles and slower I/O relative to RAM"], ans:3},
+      {q:"The base register in contiguous allocation stores:", opts:["The number of processes in memory","The size of free memory","The process's priority","The starting physical address of the process's memory block"], ans:3},
+      {q:"Compaction is used to eliminate:", opts:["Internal fragmentation","Cache misses","Page faults","External fragmentation"], ans:3},
+      {q:"The long-term scheduler controls:", opts:["Which ready process runs next","Which pages are loaded","Context switch timing","The degree of multiprogramming (processes in memory)"], ans:3},
+      {q:"Best Fit allocation strategy:", opts:["Allocates the first large-enough hole","Allocates the largest available hole","Allocates based on process priority","Allocates the smallest hole that fits the request"], ans:3},
+      {q:"The limit register is used to:", opts:["Store process end address directly","Control memory bandwidth","Limit the number of processes","Check that addresses are within the process's allocated region"], ans:3},
+      {q:"Which technique completely eliminates external fragmentation?", opts:["Variable partitions","Compaction alone","Contiguous allocation","Paging"], ans:3},
+      {q:"In the working set model, the working set contains:", opts:["All pages ever accessed","Pages predicted to be needed in the distant future","All pages currently in memory","Pages the process has accessed recently (within a defined window Δ)"], ans:3},
+      {q:"A logical address is generated by:", opts:["The MMU","The disk controller","The cache","The CPU (what the program sees, independent of physical location)"], ans:3},
+    ]
+  },
+  {
+    id:10, title:"Chapter 10", subtitle:"Virtual Memory", color:"#fa8231",
+    topics:[
+      {q:"What is Virtual Memory? Why is it useful?", a:"Virtual memory allows processes to use more memory than physically available, by storing part of the address space on disk. Benefits: programs larger than physical memory can run, more processes fit in memory (only active parts loaded), efficient process creation (Copy-on-Write). Implemented via demand paging: load pages only when accessed."},
+      {q:"What happens when a page is not in main memory? (Page Table entry)", a:"Each page table entry has a valid-invalid bit. Valid (1): page is in physical memory, frame number is valid. Invalid (0): page is either not used by process, or used but currently on disk. Accessing an invalid page triggers a page fault trap. The OS then handles loading that page from disk."},
+      {q:"What is a Page Fault? Walk through the steps.", a:"1. Process accesses a page (PTE valid bit = 0) → trap to OS. 2. OS checks internal table: is this a valid access? If not → terminate (segfault). 3. Find a free frame. 4. Schedule disk read of page into frame. 5. Update page table: set frame number, set valid bit = 1. 6. Restart the faulting instruction (from scratch). Page fault rate affects performance: EAT = (1-p)×memory access + p×(page fault overhead)."},
+      {q:"What is Copy-on-Write (COW)?", a:"After fork(), parent and child initially share all pages, marked copy-on-write. When either process writes to a shared page, OS creates a copy of that page for the writing process, and both now have separate copies. Efficient: if child immediately calls exec(), no unnecessary copying. Only pages actually written get copied. vfork() variant doesn't copy at all — child must immediately exec()."},
+      {q:"What happens when there is no free frame?", a:"Page replacement is needed. Steps: 1. Find location of desired page on disk. 2. Find a free frame OR select a victim frame using replacement algorithm. 3. If victim frame is dirty (modified bit = 1), write it to disk first. 4. Read desired page into the (now free) frame. 5. Update both page tables (victim now invalid, new page valid). 6. Restart process. Dirty bit reduces I/O by avoiding writes of unmodified pages."},
+      {q:"What is the Dirty Bit (Modified Bit)?", a:"1-bit flag in each page table entry. Set to 1 when the page is written to. When replacing a page: if dirty=0, just overwrite the frame (page on disk is still current copy). If dirty=1, must write frame back to disk first, THEN load new page. This halves I/O for unmodified pages. Critical optimization for performance."},
+      {q:"What is FIFO Page Replacement? What is Belady's Anomaly?", a:"FIFO: maintain a queue of pages in memory; replace the page that has been in memory longest. Simple but ignores actual usage — a heavily used old page gets evicted. Belady's Anomaly: for some reference strings, increasing the number of frames can INCREASE page faults with FIFO. Counterintuitive. Most other algorithms (LRU, Optimal) do not suffer from this."},
+      {q:"What is Optimal Page Replacement?", a:"Replace the page that will NOT be used for the longest time in the future. Provably optimal — lowest page fault rate possible. Problem: requires knowing future reference string (impossible in practice). Used as benchmark to compare other algorithms. If your algorithm performs close to optimal, it's good."},
+      {q:"What is LRU Page Replacement?", a:"Least Recently Used: replace the page that has not been used for the longest time in the PAST (approximates optimal using past as predictor of future). No Belady's anomaly. Implementation: Counters (timestamp each page access, replace smallest), Stack (move accessed page to top, replace bottom) — both require hardware support. Good performance but overhead."},
+      {q:"What is the Clock (Second Chance) Algorithm?", a:"Approximation of LRU. Each frame has a reference bit (set to 1 on access). Clock hand sweeps frames circularly. If reference bit = 1: clear it to 0, advance (give second chance). If reference bit = 0: evict this page. Pages recently used get a second chance before eviction. More efficient than true LRU — no per-access overhead, just a bit."},
+    ],
+    mcqs:[
+      {q:"What triggers a page fault?", opts:["A process requests too much total memory","A page is modified","A process terminates","A process accesses a page whose valid bit is 0 (not in memory)"], ans:3},
+      {q:"The valid-invalid bit in a page table entry indicates:", opts:["Whether the page has been modified","Whether the page is executable","Whether the page belongs to the OS","Whether the page is currently loaded in physical memory"], ans:3},
+      {q:"Copy-on-Write (COW) after fork() means:", opts:["All pages are copied immediately","All pages are deleted","Only the code section is shared","Pages are shared between parent and child until one writes, then a copy is made"], ans:3},
+      {q:"The dirty (modified) bit is used to:", opts:["Track page access frequency","Mark pages as executable","Indicate if a page has been recently accessed","Avoid writing a page back to disk if it hasn't been modified"], ans:3},
+      {q:"Belady's Anomaly is a property of which replacement algorithm?", opts:["LRU","Optimal","Clock","FIFO"], ans:3},
+      {q:"Which page replacement algorithm is theoretically optimal?", opts:["LRU","FIFO","Clock","Optimal (OPT) — replace page used furthest in the future"], ans:3},
+      {q:"LRU page replacement approximates which algorithm by using the past?", opts:["FIFO","Random","Clock","Optimal"], ans:3},
+      {q:"After a page fault is handled, the faulting instruction is:", opts:["Skipped entirely","Replaced with a NOP","Continued from the exact point of interruption","Restarted from the beginning"], ans:3},
+      {q:"When replacing a page with dirty bit = 0:", opts:["The page must still be written to disk first","Page replacement is postponed","The page is moved to swap area","The frame can be overwritten directly — no disk write needed"], ans:3},
+      {q:"Demand paging means:", opts:["Pre-loading all pages when a process starts","Loading pages based on predicted future access","Loading all pages when requested by scheduler","Loading pages only when they are actually accessed"], ans:3},
+      {q:"Virtual memory's main benefit for program size is:", opts:["Processes run faster","Disk access speed increases","CPU scheduling improves","Programs larger than physical RAM can execute"], ans:3},
+      {q:"A high page fault rate increases Effective Access Time (EAT) because:", opts:["More CPU time is used for scheduling","Page faults are expensive (involve disk I/O)","Memory access becomes slower","The CPU frequency drops"], ans:1},
+      {q:"The Clock (Second Chance) algorithm gives pages a second chance by:", opts:["Moving them to a higher-priority queue","Copying them to disk first","Checking the dirty bit","Clearing the reference bit to 0 instead of immediately evicting"], ans:3},
+      {q:"vfork() differs from fork() in that:", opts:["It creates a thread","It copies all pages immediately","It works only on Windows","The child does NOT get an address space copy and must call exec() immediately"], ans:3},
+      {q:"FIFO page replacement evicts:", opts:["The least recently used page","The page used furthest in the future","The page used most frequently","The page that has been in memory the longest"], ans:3},
+      {q:"Which algorithm does NOT suffer from Belady's Anomaly?", opts:["FIFO","Random replacement","All algorithms can suffer from it","LRU"], ans:3},
+      {q:"After a page fault, why is the faulting instruction restarted (not continued)?", opts:["The CPU cannot remember partial instruction state","It is more efficient","The OS requires it for security","The instruction may not have completed — all its effects must be redone consistently"], ans:3},
+    ]
+  },
+  {
+    id:11, title:"Chapter 11", subtitle:"Storage & Disk", color:"#20bf6b",
+    topics:[
+      {q:"What is Allocation of Frames? How many does each process get?", a:"Minimum frames: must have enough for any single instruction to complete (instruction may reference multiple pages). Maximum frames: total available frames. Strategies: Equal allocation (n frames / n processes). Proportional allocation: process gets frames proportional to its size. Priority allocation: higher priority process gets more frames."},
+      {q:"What is Fixed vs Global vs Local Allocation?", a:"Fixed allocation: process given fixed number of frames, cannot take from others. Local replacement: process replaces only its own pages (performance isolated). Global replacement: process can take frames from any other process. Global generally gives better throughput (high-priority process can grow); local is more predictable (one process's bad behavior doesn't hurt others)."},
+      {q:"What is Page Fault Frequency (PFF) control?", a:"Instead of working set, monitor page fault rate per process directly. Set upper and lower bounds. If fault rate > upper bound → process needs more frames (give it one). If fault rate < lower bound → process has too many frames (take one away). Suspends process if no free frames available. Directly controls thrashing without working set computation."},
+      {q:"What is the Buddy System?", a:"Kernel memory allocator. Memory divided in powers of 2. To allocate N bytes: find smallest power of 2 ≥ N. If only larger block available, split it in two equal 'buddies.' Repeat until right size. To free: check if buddy is free → merge (coalesce) them back. Fast coalescing due to simple buddy address calculation. Limitation: internal fragmentation (must round up to power of 2)."},
+      {q:"What is Slab Allocation?", a:"Kernel allocator for fixed-size objects (e.g., PCB, inode, file struct). A cache holds slabs (one or more contiguous pages). Each slab divided into fixed-size slots for one object type. States: full, partial, empty. Allocation from partial slab first, then empty slab. Benefits: no fragmentation for that object type, fast (objects pre-initialized), good cache color usage. Used in Linux kernel."},
+      {q:"What is the Moving-Head Disk Mechanism?", a:"HDD: spinning platters coated with magnetic material. Read/write head on actuator arm moves across tracks. Access time = Seek time (arm movement to correct track, 3-15ms) + Rotational Latency (wait for sector to spin under head, 0-8ms at 7200RPM) + Transfer time (actual data transfer, fastest). Seek time dominates → minimize arm movement."},
+      {q:"What is HDD vs SSD?", a:"HDD: mechanical movement, 5-15ms access, high capacity, cheap/GB, susceptible to shock, fragmentation matters. SSD: no moving parts, ~0.1ms access, faster random I/O, expensive/GB, limited write cycles (wear leveling needed), not affected by fragmentation. For OS: SSDs used for boot/system, HDDs for bulk storage. SSDs increasingly dominant."},
+      {q:"What is a Storage Area Network (SAN)?", a:"High-speed, dedicated network (typically Fibre Channel or iSCSI) connecting servers to shared storage arrays. Multiple servers access same storage pool. Appears as local storage to each server. Benefits: centralized management, easy capacity scaling, storage not tied to a single server. Used in data centers, enterprise environments."},
+      {q:"What are FCFS and SSTF Disk Scheduling?", a:"FCFS: service requests in arrival order. Simple, fair, but poor performance (lots of seeking back and forth). SSTF (Shortest Seek Time First): move to nearest pending request next. Reduces seek time significantly vs FCFS but can cause starvation of requests far from current head position. Like SJF for disk — greedy, not optimal globally."},
+      {q:"What are SCAN, C-SCAN, LOOK, C-LOOK?", a:"SCAN (elevator): head moves in one direction servicing requests, reaches end, reverses. Fair, no starvation. Bias toward middle tracks. C-SCAN (Circular): like SCAN but only services requests in one direction; jumps back to start without servicing. More uniform wait time. LOOK: like SCAN but only goes as far as last request (doesn't go to disk edge). C-LOOK: like C-SCAN but jumps back to first request. LOOK/C-LOOK are practical improvements."},
+      {q:"What is RAID? Explain key levels.", a:"Redundant Array of Independent Disks. RAID 0: striping only (split data across disks), best performance, no redundancy, one disk fails = all data lost. RAID 1: mirroring (copy on 2 disks), can survive one disk failure, 50% capacity. RAID 4: striping + dedicated parity disk (bottleneck). RAID 5: striping + distributed parity (most common), survives one disk failure. RAID 6: double parity (survives two failures). RAID 10: stripe of mirrors."},
+      {q:"What is Striping?", a:"Splitting data across multiple disks so that a single read/write can use multiple disks in parallel. Bit-level striping: bits of one byte on different disks (rarely used). Block-level striping: blocks of a file spread across disks (most common). Increases throughput proportionally to number of disks. No redundancy — adds performance not reliability. Combined with parity for RAID protection."},
+    ],
+    mcqs:[
+      {q:"Which component of disk access time dominates and is the focus of disk scheduling?", opts:["Transfer time","Controller processing time","Rotational latency","Seek time"], ans:3},
+      {q:"Which disk scheduling algorithm can cause starvation of far-away requests?", opts:["SCAN","C-SCAN","LOOK","SSTF (Shortest Seek Time First)"], ans:3},
+      {q:"RAID 0 provides:", opts:["Mirroring with no striping","Striping with distributed parity","Striping with no redundancy","Mirroring with striping"], ans:2},
+      {q:"Which is the minimum RAID level providing fault tolerance (redundancy)?", opts:["RAID 0","RAID 2","RAID 3","RAID 1"], ans:3},
+      {q:"C-SCAN differs from SCAN in that:", opts:["It services requests by distance only","It reverses immediately after each request","It goes to the nearest request","It only moves in one direction, jumping back without servicing on the return"], ans:3},
+      {q:"Slab allocation in the kernel is designed for:", opts:["User-space heap management","Large variable-size allocations","Disk storage management","Fixed-size kernel object caching with no fragmentation"], ans:3},
+      {q:"In the Buddy System, when a freed block's buddy is also free, they are:", opts:["Both discarded","Split further","Left as separate blocks","Coalesced (merged) into a larger block"], ans:3},
+      {q:"SSDs have an advantage over HDDs primarily for:", opts:["Cost per GB","Long-term write endurance","Sequential write workloads only","Random access performance (no seek time)"], ans:3},
+      {q:"LOOK differs from SCAN in that:", opts:["LOOK goes in one direction only","LOOK uses a different priority","LOOK reverses after each request","LOOK only travels as far as the last pending request (not to disk edge)"], ans:3},
+      {q:"RAID 5 requires a minimum of how many disks?", opts:["2","4","5","3"], ans:3},
+      {q:"Proportional frame allocation gives more frames to processes that:", opts:["Have higher priority","Have waited the longest","Have the highest page fault rate","Are larger in size"], ans:3},
+      {q:"Page Fault Frequency (PFF) is used to:", opts:["Count total system-wide page faults","Predict future page faults","Measure disk I/O performance","Dynamically adjust frames per process to keep fault rate in acceptable range"], ans:3},
+      {q:"Striping improves disk performance by:", opts:["Adding redundancy","Reducing seek time on a single disk","Compressing data before storage","Enabling parallel read/write across multiple disks"], ans:3},
+      {q:"A Storage Area Network (SAN) uses:", opts:["Standard Ethernet for storage","Wireless connections","Direct cables only","A dedicated high-speed network (e.g., Fibre Channel) for shared storage"], ans:3},
+      {q:"RAID 6 can survive simultaneous failure of up to:", opts:["One disk","Three disks","Four disks","Two disks"], ans:3},
+      {q:"The Buddy System allocates memory in sizes that are:", opts:["Fixed at 4KB","Equal to the request size","Randomly determined","Powers of 2"], ans:3},
+    ]
+  },
+  {
+    id:12, title:"Chapter 12", subtitle:"I/O Systems", color:"#4b7bec",
+    topics:[
+      {q:"Explain the I/O Structure", a:"Devices connect to CPU/memory via buses (PCIe, USB, etc.). Device controller: hardware component that operates the device. CPU communicates with controller via: Port I/O (special I/O instructions, separate I/O address space) or Memory-Mapped I/O (controller registers mapped to memory addresses, accessed with normal load/store). Three I/O methods: Polling, Interrupt-driven, DMA."},
+      {q:"What is a Device Controller?", a:"Hardware that acts as interface between device and system bus. Has: data registers (hold data to/from device), status registers (is device busy? error? done?), control registers (tell device what to do). CPU reads/writes these registers to control device. Controller has local buffer storage. When data transfer complete, controller raises interrupt to notify CPU."},
+      {q:"What is a Bus? What is a Port? What is Daisy Chaining?", a:"Port: a single connection point for one device (e.g., USB port, serial port). Bus: shared communication channel; multiple devices connect to same wires (PCIe, USB bus, SATA). Daisy Chaining: devices connected in series — device A connected to device B connected to controller. Interrupt request propagates down chain; first device that asserts interrupt has highest priority. PCI originally used this."},
+      {q:"What is Polling (Busy-Wait I/O)?", a:"CPU repeatedly reads device's status register in a loop (busy-waits) until device signals completion (ready bit set). Simple to implement. Problem: wastes CPU cycles — CPU is spinning doing nothing useful. When good: if device is very fast (the wait is short), or on embedded systems where CPU has nothing better to do. Modern CPUs do 'spinning' polls for short expected waits before falling back to interrupts."},
+      {q:"What is Interrupt-Driven I/O?", a:"1. CPU initiates I/O (writes to controller registers). 2. CPU continues executing other processes. 3. Device completes operation → raises interrupt signal on interrupt request line. 4. CPU completes current instruction, checks interrupt line. 5. CPU saves state, jumps to Interrupt Service Routine (ISR) via interrupt vector. 6. ISR handles event (e.g., copies data from controller buffer to memory). 7. CPU restores state and resumes. Much more efficient than polling for slow devices."},
+      {q:"Polling vs Interrupt: which is better when?", a:"Polling: better when device is fast and expected wait is very short (e.g., high-speed network NIC processing packets — interrupt overhead per packet would dominate). Interrupts: better when device is slow and CPU should do other work (keyboard, disk, user I/O). Modern hybrid: poll first for short time, if not ready switch to interrupt mode. High-performance network drivers use polling loops (NAPI in Linux)."},
+      {q:"What is DMA (Direct Memory Access)?", a:"DMA controller handles bulk data transfers between I/O device and memory WITHOUT CPU involvement. Setup: CPU tells DMA (source address, destination in memory, byte count, direction). DMA takes over bus, transfers data directly, stealing bus cycles from CPU (cycle stealing). When done, DMA raises ONE interrupt. CPU only interrupted once per block transfer instead of once per byte. Critical for disk, network, audio."},
+      {q:"What is Buffering? Why is it needed?", a:"Temporary memory area holding data during transfer. Needed for: 1. Speed mismatch (producer faster than consumer — buffer prevents data loss). 2. Transfer size mismatch (device and application use different data sizes). 3. Copy semantics (user calls write() and modifies buffer — OS copied data to kernel buffer first, so modification doesn't affect already-queued data). Double buffering: two buffers so one can be filled while other is drained."},
+      {q:"Buffering vs Caching vs Spooling?", a:"Buffering: temporary storage to TRANSFER data (handles speed/size mismatch). Caching: copy kept in fast storage for REUSE (same data available faster next time — data exists elsewhere). Spooling (Simultaneous Peripheral Operations On-Line): buffer an entire job before sending to dedicated device that can't interleave jobs (printer). Jobs queued on disk, sent to printer one at a time. Print queue is a spooler."},
+      {q:"What Characteristics Define I/O Devices?", a:"Transfer mode: character device (one byte at a time — keyboard, serial) vs block device (fixed-size blocks — disk, SSD). Access method: sequential (tape) vs random-access (disk, SSD). Synchronicity: synchronous (predictable response time) vs asynchronous (variable). Sharing: dedicated (printer — one process at a time) vs sharable (keyboard, disk). Speed: varies from bytes/sec to GB/sec. Direction: read-only, write-only, read-write."},
+      {q:"What is the I/O Subsystem and Kernel I/O structure?", a:"Layers: User process → I/O library (user space) → System call interface → Kernel I/O subsystem (scheduling, buffering, caching, spooling, device reservation, error handling) → Device driver → Device controller → Device hardware. Device driver: device-specific code that talks to controller, hides hardware details from kernel. Kernel I/O subsystem provides uniform interface regardless of device type."},
+    ],
+    mcqs:[
+      {q:"Memory-Mapped I/O means:", opts:["Mapping process memory to I/O devices","Using RAM as a disk buffer","Copying I/O data into process memory","Device controller registers are mapped to memory addresses, accessed with normal load/store"], ans:3},
+      {q:"DMA interrupts the CPU:", opts:["Once per byte transferred","Once per word transferred","Never","Once per block/buffer transfer (when the whole transfer completes)"], ans:3},
+      {q:"The main advantage of interrupt-driven I/O over polling is:", opts:["Simpler to implement","No interrupt handler needed","Faster for very small transfers","CPU can do other useful work while the device operates"], ans:3},
+      {q:"Spooling is best described as:", opts:["Temporary buffering for speed mismatch between two devices","Direct memory access for I/O","Caching frequently used data","Queuing jobs for a dedicated device (like a printer) that cannot interleave jobs"], ans:3},
+      {q:"Which of these is a character device?", opts:["Hard disk","SSD","Optical drive","Keyboard"], ans:3},
+      {q:"Daisy chaining in I/O allows:", opts:["Parallel I/O on all devices simultaneously","Fault tolerance for I/O devices","Reduced memory usage","Multiple devices to share one connection point with priority ordering via a chain"], ans:3},
+      {q:"How does caching differ from buffering?", opts:["Buffering is faster than caching","Caching handles speed mismatch between devices","Buffering is used in CPU registers","Caching stores a copy of data for faster future reuse; the data already exists elsewhere"], ans:3},
+      {q:"A device driver's purpose is to:", opts:["Control user-level I/O requests","Manage disk scheduling globally","Control memory allocation for I/O","Provide device-specific code to talk to the device controller, hiding hardware from the kernel"], ans:3},
+      {q:"During polling, while waiting for I/O the CPU:", opts:["Executes other processes","Enters sleep mode","Runs interrupt service routines","Repeatedly reads the device status register in a busy-wait loop"], ans:3},
+      {q:"What distinguishes a disk from a tape in terms of I/O characteristics?", opts:["Transfer mode (character vs block)","Speed","Direction (read-only vs read-write)","Access method (random-access vs sequential)"], ans:3},
+      {q:"Double buffering means:", opts:["Using cache alongside a buffer","Buffering both input and output","Using two I/O devices simultaneously","Having two buffers alternating — one fills while the other drains"], ans:3},
+      {q:"Port I/O uses:", opts:["Normal memory load/store instructions","A dedicated high-speed bus","Shared memory regions","Special I/O instructions and a separate I/O address space"], ans:3},
+      {q:"Copy semantics in I/O buffering ensures that:", opts:["I/O data is copied between processes","Devices copy data directly to each other","Data is copied from cache to buffer","After write(), the user can safely modify their buffer (OS already copied data to kernel buffer)"], ans:3},
+      {q:"Polling is preferred over interrupts when:", opts:["Accessing slow devices like keyboards","For disk access only","In all embedded systems unconditionally","The device is very fast and interrupt overhead per operation would dominate"], ans:3},
+      {q:"The interrupt vector table maps:", opts:["Process IDs to PCBs","Device names to drivers","Memory addresses to processes","Interrupt numbers to the addresses of their service routines (ISRs)"], ans:3},
+      {q:"The kernel I/O subsystem provides:", opts:["Direct hardware register access","Only disk scheduling","Only memory management","A uniform interface to processes regardless of the underlying device type"], ans:3},
+    ]
+  }
+];
+
+const totalTopics = chapters.reduce((s,c)=>s+c.topics.length,0);
+const totalMcqs = chapters.reduce((s,c)=>s+c.mcqs.length,0);
+
+// Seeded shuffle — stable per question index so answers don't move on re-render
+function seededShuffle(arr, seed) {
+  const a = [...arr];
+  let s = seed >>> 0;
+  for (let i = a.length - 1; i > 0; i--) {
+    s = (Math.imul(s, 1664525) + 1013904223) >>> 0;
+    const j = s % (i + 1);
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function buildShuffledMcqs(mcqs, chapterId) {
+  return mcqs.map((mcq, qi) => {
+    const pairs = mcq.opts.map((opt, i) => ({ opt, correct: i === mcq.ans }));
+    const shuffled = seededShuffle(pairs, chapterId * 1000 + qi * 37 + 7);
+    return { q: mcq.q, opts: shuffled.map(x => x.opt), ans: shuffled.findIndex(x => x.correct) };
+  });
+}
+
+// Theme tokens
+const T = {
+  bg:     "#f0eeea",
+  card:   "#ffffff",
+  cardAlt:"#f8f7f4",
+  border: "#e5e2dc",
+  borderLight:"#eeece8",
+  text:   "#1a1820",
+  textSub:"#666",
+  textMuted:"#aaa",
+  shadow: "0 2px 12px rgba(0,0,0,0.07)",
+  shadowMd:"0 4px 20px rgba(0,0,0,0.10)",
+};
+
+function App() {
+  const [view, setView]   = useState("home");
+  const [chId, setChId]   = useState(null);
+  const [flipped, setFlipped] = useState({});
+  const [scores, setScores]   = useState(() => {
+    try { return JSON.parse(localStorage.getItem("os_scores")||"{}"); } catch{ return {}; }
+  });
+  const [quizIdx, setQuizIdx]           = useState(0);
+  const [quizRevealed, setQuizRevealed] = useState(false);
+  const [userAnswer, setUserAnswer]     = useState("");
+  const [mcqIdx, setMcqIdx]             = useState(0);
+  const [mcqSelected, setMcqSelected]   = useState(null);
+  const [mcqScore, setMcqScore]         = useState({correct:0, total:0});
+  const [mcqDone, setMcqDone]           = useState(false);
+  const [mcqData, setMcqData]           = useState([]);
+  const [searchQ, setSearchQ]           = useState("");
+
+  const ch = chapters.find(c=>c.id===chId);
+
+  const saveScore = (key, val) => {
+    const next = val===undefined
+      ? (()=>{ const n={...scores}; delete n[key]; return n; })()
+      : {...scores,[key]:val};
+    setScores(next);
+    try { localStorage.setItem("os_scores", JSON.stringify(next)); } catch{}
+  };
+
+  const knownCount = (id) => {
+    const c = chapters.find(x=>x.id===id);
+    return c ? c.topics.filter((_,i)=>scores[`${id}-${i}`]==="know").length : 0;
+  };
+  const totalKnown = chapters.reduce((s,c)=>s+knownCount(c.id),0);
+
+  const quizTopics = ch ? ch.topics.map((t,i)=>({...t,__i:i})).filter(t=>scores[`${chId}-${t.__i}`]!=="know") : [];
+
+  const markQuiz = (result) => {
+    saveScore(`${chId}-${quizTopics[quizIdx].__i}`, result);
+    if(quizIdx+1 < quizTopics.length){ setQuizIdx(i=>i+1); setQuizRevealed(false); setUserAnswer(""); }
+    else { setView("chapter"); setQuizIdx(0); setQuizRevealed(false); setUserAnswer(""); }
+  };
+
+  const startMcq = (id) => {
+    const c = chapters.find(x=>x.id===id);
+    setChId(id);
+    setMcqData(buildShuffledMcqs(c.mcqs, id));
+    setMcqIdx(0); setMcqSelected(null);
+    setMcqScore({correct:0,total:0}); setMcqDone(false); setView("mcq");
+  };
+
+  const handleMcqAnswer = (optIdx) => {
+    if(mcqSelected!==null) return;
+    setMcqSelected(optIdx);
+    const correct = mcqData[mcqIdx].ans === optIdx;
+    setMcqScore(s=>({correct: s.correct+(correct?1:0), total: s.total+1}));
+  };
+
+  const nextMcq = () => {
+    if(mcqIdx+1 < mcqData.length){ setMcqIdx(i=>i+1); setMcqSelected(null); }
+    else { setMcqDone(true); }
+  };
+
+  const searchResults = searchQ.length>1
+    ? chapters.flatMap(c=>c.topics.map((t,i)=>({...t,chId:c.id,chTitle:c.title,chColor:c.color,idx:i})))
+        .filter(t=>t.q.toLowerCase().includes(searchQ.toLowerCase())||t.a.toLowerCase().includes(searchQ.toLowerCase()))
+    : [];
+
+  // ── HOME ─────────────────────────────────────────────────────────────────
+  if(view==="home") return (
+    <div style={{maxWidth:720,margin:"0 auto",padding:"40px 16px"}}>
+      <div style={{textAlign:"center",marginBottom:48}}>
+        <div style={{fontSize:11,letterSpacing:6,color:T.textMuted,textTransform:"uppercase",marginBottom:8}}>Final Review</div>
+        <h1 style={{fontSize:44,fontWeight:900,margin:0,letterSpacing:-2,color:T.text}}>
+          OS <span style={{color:"#ff6b35"}}>Study</span>
+        </h1>
+        <div style={{marginTop:10,fontSize:13,color:T.textSub}}>
+          {chapters.length} chapters · {totalTopics} flashcards · {totalMcqs} MCQs · <span style={{color:"#20a060",fontWeight:600}}>{totalKnown} known</span>
+        </div>
+        <div style={{margin:"16px auto 0",background:T.border,borderRadius:8,height:7,maxWidth:300,overflow:"hidden"}}>
+          <div style={{background:"#20a060",width:`${Math.round(totalKnown/totalTopics*100)}%`,height:"100%",borderRadius:8,transition:"width .4s"}}/>
+        </div>
+        <div style={{marginTop:6,fontSize:11,color:T.textMuted}}>{Math.round(totalKnown/totalTopics*100)}% complete</div>
+      </div>
+
+      <div style={{marginBottom:28,position:"relative"}}>
+        <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="🔍  Search any topic..."
+          style={{width:"100%",background:T.card,border:`1.5px solid ${T.border}`,borderRadius:10,padding:"12px 16px",
+            color:T.text,fontSize:13,outline:"none",fontFamily:"'Courier New',monospace",boxShadow:T.shadow}}/>
+        {searchQ && <button onClick={()=>setSearchQ("")}
+          style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",color:T.textMuted,fontSize:16}}>✕</button>}
+      </div>
+
+      {searchQ.length>1 ? (
+        <div>
+          <div style={{fontSize:11,color:T.textMuted,marginBottom:16,letterSpacing:2}}>SEARCH RESULTS ({searchResults.length})</div>
+          {searchResults.length===0 && <div style={{color:T.textMuted,fontSize:13}}>No results found.</div>}
+          {searchResults.map((t,i)=><SearchCard key={i} t={t} scores={scores} saveScore={saveScore}/>)}
+        </div>
+      ) : (
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          {chapters.map(c=>{
+            const known=knownCount(c.id); const pct=Math.round(known/c.topics.length*100);
+            return (
+              <button key={c.id} onClick={()=>{setChId(c.id);setView("chapter");}}
+                style={{background:T.card,border:`1.5px solid ${T.border}`,borderRadius:12,padding:"18px 20px",
+                  textAlign:"left",cursor:"pointer",transition:"all .15s",boxShadow:T.shadow}}
+                onMouseEnter={e=>{e.currentTarget.style.borderColor=c.color;e.currentTarget.style.boxShadow=T.shadowMd;e.currentTarget.style.transform="translateY(-2px)";}}
+                onMouseLeave={e=>{e.currentTarget.style.borderColor=T.border;e.currentTarget.style.boxShadow=T.shadow;e.currentTarget.style.transform="translateY(0)";}}>
+                <div style={{width:10,height:10,borderRadius:"50%",background:c.color,marginBottom:10}}/>
+                <div style={{fontSize:13,fontWeight:700,color:T.text,marginBottom:2}}>{c.title}</div>
+                <div style={{fontSize:11,color:T.textSub,marginBottom:10}}>{c.subtitle}</div>
+                <div style={{fontSize:10,color:T.textMuted,marginBottom:8}}>{c.topics.length} flashcards · {c.mcqs.length} MCQs</div>
+                <div style={{background:T.borderLight,borderRadius:4,height:4,overflow:"hidden"}}>
+                  <div style={{background:c.color,width:`${pct}%`,height:"100%",borderRadius:4,transition:"width .4s"}}/>
+                </div>
+                <div style={{fontSize:10,color:T.textMuted,marginTop:5}}>{known}/{c.topics.length} known</div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+      <div style={{textAlign:"center",marginTop:40}}>
+        <button onClick={()=>{ setScores({}); try{localStorage.removeItem("os_scores")}catch{}; }}
+          style={{background:"none",border:`1px solid ${T.border}`,borderRadius:8,color:T.textMuted,padding:"8px 20px",fontSize:11,fontFamily:"inherit"}}>
+          Reset Progress
+        </button>
+      </div>
+    </div>
+  );
+
+  // ── CHAPTER VIEW ─────────────────────────────────────────────────────────
+  if(view==="chapter" && ch) return (
+    <div style={{maxWidth:700,margin:"0 auto",padding:"32px 16px"}}>
+      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:24,flexWrap:"wrap"}}>
+        <button onClick={()=>setView("home")}
+          style={{background:T.card,border:`1.5px solid ${T.border}`,borderRadius:8,color:T.textSub,padding:"8px 16px",fontSize:11,fontFamily:"inherit",boxShadow:T.shadow}}>
+          ← Home
+        </button>
+        <div style={{flex:1}}>
+          <div style={{fontSize:10,color:T.textMuted,letterSpacing:3,textTransform:"uppercase"}}>{ch.subtitle}</div>
+          <h2 style={{margin:0,fontSize:22,color:T.text,fontWeight:800}}>{ch.title}</h2>
+        </div>
+      </div>
+
+      <div style={{display:"flex",gap:10,marginBottom:24}}>
+        <button onClick={()=>{setQuizIdx(0);setQuizRevealed(false);setUserAnswer("");setView("quiz");}}
+          style={{background:ch.color,border:"none",borderRadius:8,color:"#fff",
+            padding:"10px 18px",fontSize:12,fontWeight:700,fontFamily:"inherit",flex:1,boxShadow:`0 3px 12px ${ch.color}50`}}>
+          📝 Flashcard Quiz
+        </button>
+        <button onClick={()=>startMcq(chId)}
+          style={{background:T.card,border:`1.5px solid ${T.border}`,borderRadius:8,color:T.text,
+            padding:"10px 18px",fontSize:12,fontWeight:700,fontFamily:"inherit",flex:1,boxShadow:T.shadow}}>
+          🔘 MCQ Quiz ({ch.mcqs.length} Qs)
+        </button>
+      </div>
+
+      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+        {ch.topics.map((t,i)=>{
+          const key=`${chId}-${i}`; const isOpen=flipped[key]; const st=scores[key];
+          return (
+            <div key={i} onClick={()=>setFlipped(p=>({...p,[key]:!p[key]}))}
+              style={{background:T.card,
+                border:`1.5px solid ${st==="know"?"#20a060":st==="review"?"#e03050":isOpen?ch.color+"60":T.border}`,
+                borderRadius:10,padding:"16px 20px",cursor:"pointer",transition:"all .15s",boxShadow:T.shadow}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12}}>
+                <div style={{fontSize:13,fontWeight:600,color:T.text,lineHeight:1.6,flex:1}}>{t.q}</div>
+                <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+                  {st==="know" && <span style={{fontSize:11,color:"#20a060",fontWeight:700}}>✓</span>}
+                  {st==="review" && <span style={{fontSize:11,color:"#e03050"}}>↻</span>}
+                  <span style={{color:T.textMuted,fontSize:12}}>{isOpen?"▲":"▼"}</span>
+                </div>
+              </div>
+              {isOpen && (
+                <>
+                  <div style={{marginTop:14,paddingTop:14,borderTop:`1px solid ${T.borderLight}`,
+                    fontSize:13,color:"#444",lineHeight:1.9,borderLeft:`3px solid ${ch.color}`,paddingLeft:12}}>
+                    {t.a}
+                  </div>
+                  <div style={{display:"flex",gap:8,marginTop:14}} onClick={e=>e.stopPropagation()}>
+                    <button onClick={()=>saveScore(key,"know")} style={{background:"#e8f8ef",border:"1px solid #20a060",borderRadius:6,color:"#20a060",padding:"6px 14px",fontSize:11,fontFamily:"inherit",cursor:"pointer",fontWeight:600}}>✓ Know it</button>
+                    <button onClick={()=>saveScore(key,"review")} style={{background:"#fdeef0",border:"1px solid #e03050",borderRadius:6,color:"#e03050",padding:"6px 14px",fontSize:11,fontFamily:"inherit",cursor:"pointer",fontWeight:600}}>↻ Review</button>
+                    <button onClick={()=>saveScore(key,undefined)} style={{background:"none",border:`1px solid ${T.border}`,borderRadius:6,color:T.textMuted,padding:"6px 14px",fontSize:11,fontFamily:"inherit",cursor:"pointer"}}>Clear</button>
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  // ── FLASHCARD QUIZ ───────────────────────────────────────────────────────
+  if(view==="quiz" && ch) {
+    if(quizTopics.length===0) return (
+      <div style={{maxWidth:500,margin:"80px auto",textAlign:"center",padding:24}}>
+        <div style={{fontSize:48,marginBottom:16}}>🎉</div>
+        <div style={{fontSize:22,color:T.text,fontWeight:700}}>Chapter Complete!</div>
+        <div style={{color:T.textSub,marginTop:8,marginBottom:32,fontSize:13}}>All topics marked as known for {ch.title}.</div>
+        <button onClick={()=>{setView("chapter");setQuizIdx(0);setUserAnswer("");}}
+          style={{background:ch.color,border:"none",borderRadius:8,color:"#fff",padding:"12px 28px",fontSize:13,fontFamily:"inherit",fontWeight:700,cursor:"pointer"}}>
+          Back to Chapter
+        </button>
+      </div>
+    );
+
+    const topic = quizTopics[quizIdx];
+    return (
+      <div style={{maxWidth:640,margin:"0 auto",padding:"36px 16px"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:28}}>
+          <button onClick={()=>{setView("chapter");setQuizIdx(0);setQuizRevealed(false);setUserAnswer("");}}
+            style={{background:T.card,border:`1.5px solid ${T.border}`,borderRadius:8,color:T.textSub,padding:"8px 14px",fontSize:11,fontFamily:"inherit",boxShadow:T.shadow}}>
+            ← Exit
+          </button>
+          <div style={{textAlign:"center"}}>
+            <div style={{fontSize:12,color:T.textSub}}>{quizIdx+1} / {quizTopics.length}</div>
+            <div style={{width:120,background:T.borderLight,borderRadius:4,height:4,marginTop:4}}>
+              <div style={{background:ch.color,width:`${Math.round(quizIdx/quizTopics.length*100)}%`,height:"100%",borderRadius:4}}/>
+            </div>
+          </div>
+          <div style={{fontSize:11,color:T.textMuted}}>📝 Flashcard</div>
+        </div>
+
+        <div style={{background:T.card,border:`1.5px solid ${T.border}`,borderRadius:16,padding:"32px 28px",boxShadow:T.shadowMd}}>
+          <div style={{fontSize:10,color:ch.color,letterSpacing:3,textTransform:"uppercase",marginBottom:14,fontWeight:700}}>{ch.subtitle}</div>
+          <div style={{fontSize:17,fontWeight:700,color:T.text,lineHeight:1.7,marginBottom:24}}>{topic.q}</div>
+
+          <div style={{marginBottom:20}}>
+            <div style={{fontSize:10,color:T.textMuted,letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>Your Answer</div>
+            <textarea value={userAnswer} onChange={e=>setUserAnswer(e.target.value)}
+              placeholder="Type your answer here before revealing..."
+              disabled={quizRevealed} rows={5}
+              style={{width:"100%",background:quizRevealed?T.cardAlt:T.card,
+                border:`1.5px solid ${quizRevealed?T.borderLight:T.border}`,
+                borderRadius:10,padding:"14px 16px",color:quizRevealed?T.textMuted:T.text,
+                fontSize:13,lineHeight:1.8,resize:"vertical",outline:"none",fontFamily:"'Courier New',monospace"}}/>
+          </div>
+
+          {!quizRevealed ? (
+            <button onClick={()=>setQuizRevealed(true)}
+              style={{background:ch.color,border:"none",borderRadius:8,color:"#fff",
+                padding:"12px 24px",fontSize:12,fontFamily:"inherit",fontWeight:700,cursor:"pointer",boxShadow:`0 3px 10px ${ch.color}50`}}>
+              Reveal Answer ▼
+            </button>
+          ) : (
+            <>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:20}}>
+                <div>
+                  <div style={{fontSize:10,color:T.textMuted,letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>Your Answer</div>
+                  <div style={{background:T.cardAlt,borderRadius:10,padding:"14px",fontSize:13,color:"#666",
+                    lineHeight:1.8,minHeight:80,borderLeft:"3px solid #ddd",whiteSpace:"pre-wrap"}}>
+                    {userAnswer.trim()||<span style={{color:T.textMuted,fontStyle:"italic"}}>No answer written</span>}
+                  </div>
+                </div>
+                <div>
+                  <div style={{fontSize:10,color:ch.color,letterSpacing:2,textTransform:"uppercase",marginBottom:8,fontWeight:700}}>Correct Answer</div>
+                  <div style={{background:T.cardAlt,borderRadius:10,padding:"14px",fontSize:13,color:"#333",
+                    lineHeight:1.8,minHeight:80,borderLeft:`3px solid ${ch.color}`}}>
+                    {topic.a}
+                  </div>
+                </div>
+              </div>
+              <div style={{display:"flex",gap:12}}>
+                <button onClick={()=>markQuiz("review")}
+                  style={{background:"#fdeef0",border:"1.5px solid #e03050",borderRadius:8,color:"#e03050",
+                    padding:"12px 24px",fontSize:12,fontFamily:"inherit",fontWeight:700,flex:1,cursor:"pointer"}}>
+                  ✗ Still Learning
+                </button>
+                <button onClick={()=>markQuiz("know")}
+                  style={{background:"#e8f8ef",border:"1.5px solid #20a060",borderRadius:8,color:"#20a060",
+                    padding:"12px 24px",fontSize:12,fontFamily:"inherit",fontWeight:700,flex:1,cursor:"pointer"}}>
+                  ✓ Got It!
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── MCQ QUIZ ─────────────────────────────────────────────────────────────
+  if(view==="mcq" && ch) {
+    if(mcqDone) {
+      const pct = Math.round(mcqScore.correct/mcqScore.total*100);
+      const grade = pct>=90?"🏆 Excellent!":pct>=75?"👍 Good Job!":pct>=60?"📚 Keep Studying":"💪 Review Needed";
+      const scoreColor = pct>=75?"#20a060":"#e03050";
+      return (
+        <div style={{maxWidth:480,margin:"60px auto",textAlign:"center",padding:"24px 16px"}}>
+          <div style={{fontSize:48,marginBottom:12}}>{pct>=75?"🎯":"📖"}</div>
+          <div style={{fontSize:22,color:T.text,fontWeight:700,marginBottom:4}}>Quiz Complete</div>
+          <div style={{fontSize:13,color:T.textSub,marginBottom:28}}>{ch.title} — MCQ Quiz</div>
+          <div style={{background:T.card,border:`1.5px solid ${T.border}`,borderRadius:16,padding:"32px",marginBottom:24,boxShadow:T.shadowMd}}>
+            <div style={{fontSize:52,fontWeight:900,color:scoreColor,marginBottom:4}}>
+              {mcqScore.correct}/{mcqScore.total}
+            </div>
+            <div style={{fontSize:28,fontWeight:700,color:T.text,marginBottom:8}}>{pct}%</div>
+            <div style={{fontSize:14,color:T.textSub}}>{grade}</div>
+            <div style={{margin:"20px auto 0",background:T.borderLight,borderRadius:8,height:8,maxWidth:200,overflow:"hidden"}}>
+              <div style={{background:scoreColor,width:`${pct}%`,height:"100%",borderRadius:8}}/>
+            </div>
+          </div>
+          <div style={{display:"flex",gap:10,justifyContent:"center"}}>
+            <button onClick={()=>startMcq(chId)}
+              style={{background:T.card,border:`1.5px solid ${T.border}`,borderRadius:8,color:T.text,padding:"11px 22px",fontSize:12,fontFamily:"inherit",fontWeight:700,cursor:"pointer",boxShadow:T.shadow}}>
+              Retry MCQ
+            </button>
+            <button onClick={()=>setView("chapter")}
+              style={{background:ch.color,border:"none",borderRadius:8,color:"#fff",padding:"11px 22px",fontSize:12,fontFamily:"inherit",fontWeight:700,cursor:"pointer",boxShadow:`0 3px 10px ${ch.color}50`}}>
+              Back to Chapter
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    const mcq = mcqData[mcqIdx];
+    if(!mcq) return null;
+    const optLetters = ["A","B","C","D"];
+
+    return (
+      <div style={{maxWidth:640,margin:"0 auto",padding:"36px 16px"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:28}}>
+          <button onClick={()=>setView("chapter")}
+            style={{background:T.card,border:`1.5px solid ${T.border}`,borderRadius:8,color:T.textSub,padding:"8px 14px",fontSize:11,fontFamily:"inherit",boxShadow:T.shadow}}>
+            ← Exit
+          </button>
+          <div style={{textAlign:"center"}}>
+            <div style={{fontSize:12,color:T.textSub}}>{mcqIdx+1} / {mcqData.length}</div>
+            <div style={{width:120,background:T.borderLight,borderRadius:4,height:4,marginTop:4}}>
+              <div style={{background:ch.color,width:`${Math.round(mcqIdx/mcqData.length*100)}%`,height:"100%",borderRadius:4}}/>
+            </div>
+          </div>
+          <div style={{fontSize:12,fontWeight:700,color:mcqScore.correct>0?"#20a060":T.textMuted}}>
+            ✅ {mcqScore.correct}/{mcqScore.total}
+          </div>
+        </div>
+
+        <div style={{background:T.card,border:`1.5px solid ${T.border}`,borderRadius:16,padding:"32px 28px",boxShadow:T.shadowMd}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16}}>
+            <span style={{background:ch.color,color:"#fff",fontSize:10,fontWeight:700,padding:"3px 10px",borderRadius:20,letterSpacing:1}}>
+              MCQ
+            </span>
+            <span style={{fontSize:11,color:T.textMuted}}>{ch.subtitle}</span>
+          </div>
+          <div style={{fontSize:16,fontWeight:700,color:T.text,lineHeight:1.7,marginBottom:24}}>{mcq.q}</div>
+
+          <div style={{display:"flex",flexDirection:"column",gap:9}}>
+            {mcq.opts.map((opt,i)=>{
+              const isCorrect = i===mcq.ans;
+              const isSelected = i===mcqSelected;
+              const revealed = mcqSelected!==null;
+              let bg=T.card, border=T.border, color=T.text, letterBg="#f0eeea", letterColor=T.textSub;
+              if(revealed){
+                if(isCorrect){bg="#e8f8ef";border="#20a060";color="#15703f";letterBg="#20a060";letterColor="#fff";}
+                else if(isSelected){bg="#fdeef0";border="#e03050";color="#b02040";letterBg="#e03050";letterColor="#fff";}
+                else{color=T.textMuted;}
+              } else {
+                letterBg = ch.color+"22";
+                letterColor = ch.color;
+              }
+              return (
+                <button key={i} onClick={()=>handleMcqAnswer(i)} disabled={revealed}
+                  style={{background:bg,border:`1.5px solid ${border}`,borderRadius:10,padding:"13px 16px",
+                    textAlign:"left",color:color,fontSize:13,lineHeight:1.6,
+                    cursor:revealed?"default":"pointer",transition:"all .12s",
+                    display:"flex",alignItems:"flex-start",gap:12,
+                    boxShadow:revealed?"none":T.shadow}}
+                  onMouseEnter={e=>{ if(!revealed){ e.currentTarget.style.borderColor=ch.color; e.currentTarget.style.boxShadow=`0 2px 8px ${ch.color}30`; }}}
+                  onMouseLeave={e=>{ if(!revealed){ e.currentTarget.style.borderColor=T.border; e.currentTarget.style.boxShadow=T.shadow; }}}>
+                  <span style={{background:letterBg,color:letterColor,fontWeight:700,fontSize:11,
+                    width:22,height:22,borderRadius:6,display:"flex",alignItems:"center",justifyContent:"center",
+                    flexShrink:0,marginTop:1}}>
+                    {revealed&&isCorrect?"✓":revealed&&isSelected?"✗":optLetters[i]}
+                  </span>
+                  <span>{opt}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {mcqSelected!==null && (
+            <div style={{marginTop:20,paddingTop:20,borderTop:`1px solid ${T.borderLight}`,display:"flex",justifyContent:"flex-end"}}>
+              <button onClick={nextMcq}
+                style={{background:ch.color,border:"none",borderRadius:8,color:"#fff",padding:"11px 28px",
+                  fontSize:13,fontFamily:"inherit",fontWeight:700,cursor:"pointer",boxShadow:`0 3px 10px ${ch.color}50`}}>
+                {mcqIdx+1<mcqData.length?"Next Question →":"See Results 🏁"}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
+
+function SearchCard({t, scores, saveScore}) {
+  const [open, setOpen] = useState(false);
+  const key=`${t.chId}-${t.idx}`; const st=scores[key];
+  return (
+    <div onClick={()=>setOpen(o=>!o)}
+      style={{background:"#fff",border:`1.5px solid ${st==="know"?"#20a060":st==="review"?"#e03050":"#e5e2dc"}`,
+        borderRadius:10,padding:"14px 18px",marginBottom:8,cursor:"pointer",boxShadow:"0 2px 8px rgba(0,0,0,0.06)"}}>
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+        <div style={{width:6,height:6,borderRadius:"50%",background:t.chColor,flexShrink:0}}/>
+        <div style={{fontSize:10,color:"#999"}}>{t.chTitle}</div>
+      </div>
+      <div style={{fontSize:13,fontWeight:600,color:"#1a1820",lineHeight:1.5}}>{t.q}</div>
+      {open && (
+        <>
+          <div style={{marginTop:12,paddingTop:12,borderTop:"1px solid #eeece8",fontSize:13,color:"#555",lineHeight:1.9,
+            borderLeft:`3px solid ${t.chColor}`,paddingLeft:12}}>{t.a}</div>
+          <div style={{display:"flex",gap:8,marginTop:12}} onClick={e=>e.stopPropagation()}>
+            <button onClick={()=>saveScore(key,"know")} style={{background:"#e8f8ef",border:"1px solid #20a060",borderRadius:6,color:"#20a060",padding:"6px 14px",fontSize:11,fontFamily:"inherit",cursor:"pointer",fontWeight:600}}>✓ Know it</button>
+            <button onClick={()=>saveScore(key,"review")} style={{background:"#fdeef0",border:"1px solid #e03050",borderRadius:6,color:"#e03050",padding:"6px 14px",fontSize:11,fontFamily:"inherit",cursor:"pointer",fontWeight:600}}>↻ Review</button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
